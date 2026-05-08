@@ -151,6 +151,8 @@ if "active_chemical_name" not in st.session_state:
     st.session_state.active_chemical_name = ""
 if "integrated_run_log" not in st.session_state:
     st.session_state.integrated_run_log = []
+if "active_screen" not in st.session_state:
+    st.session_state.active_screen = "Strategy Dashboard"
 
 # --- UI Layout ---
 with st.sidebar:
@@ -540,6 +542,17 @@ def render_strategy_dashboard():
     r3.markdown(risk_badge_html("Impurity / Degradation", snapshot["degradation_risk"]), unsafe_allow_html=True)
     r4.markdown(risk_badge_html("Bioequivalence", snapshot["bioequivalence_risk"]), unsafe_allow_html=True)
 
+    nav1, nav2, nav3 = st.columns(3)
+    if nav1.button("Open Genotoxicity QSAR Detail", use_container_width=True):
+        st.session_state.active_screen = "Genotoxicity QSAR"
+        st.rerun()
+    if nav2.button("Open Bioequivalence Detail", use_container_width=True):
+        st.session_state.active_screen = "Bioequivalence"
+        st.rerun()
+    if nav3.button("Open Integrated Evidence", use_container_width=True):
+        st.session_state.active_screen = "Integrated Evidence"
+        st.rerun()
+
     st.info(f"**{user_role} focus**: {snapshot['role_focus']}  \n\n**Recommended next action**: {snapshot['role_next_action']}")
 
     dash_tab1, dash_tab2, dash_tab3 = st.tabs(["Workflow", "Module Actions", "Guidance Map"])
@@ -586,6 +599,17 @@ def render_primary_chemical_start():
             st.write(f"- {item}")
     st.markdown("</div>", unsafe_allow_html=True)
 
+def render_module_navigation():
+    screens = ["Strategy Dashboard", "Genotoxicity QSAR", "Bioequivalence", "Integrated Evidence"]
+    current = st.session_state.active_screen if st.session_state.active_screen in screens else "Strategy Dashboard"
+    st.session_state.active_screen = st.radio(
+        "Module detail view",
+        screens,
+        index=screens.index(current),
+        horizontal=True,
+        help="Select a detail screen. Genotoxicity QSAR and Bioequivalence open as focused module views.",
+    )
+
 def render_bioequivalence_module():
     st.markdown("---")
     st.markdown("<div class='accent-text'>Bioequivalence Strategy</div>", unsafe_allow_html=True)
@@ -620,6 +644,33 @@ def render_bioequivalence_module():
             st.markdown("##### Orange Book RLD / RS candidates")
             if ob.get("rows"):
                 st.dataframe(pd.DataFrame(ob["rows"]), use_container_width=True, hide_index=True)
+                preferred_rows = [
+                    row for row in ob["rows"]
+                    if str(row.get("RLD", "")).lower() == "yes" or str(row.get("RS", "")).lower() == "yes"
+                ] or ob["rows"]
+                product_options = [
+                    f"{idx + 1}. {row.get('Trade name')} | {row.get('Strength')} | {row.get('Dosage form / route')} | RLD {row.get('RLD')} | RS {row.get('RS')}"
+                    for idx, row in enumerate(preferred_rows)
+                ]
+                selected_product = st.selectbox("Reference product / strength for BE plan", product_options)
+                selected_product_row = preferred_rows[product_options.index(selected_product)]
+                p1, p2, p3 = st.columns(3)
+                p1.metric("Reference product", selected_product_row.get("Trade name") or "N/A")
+                p2.metric("Strength", selected_product_row.get("Strength") or "N/A")
+                p3.metric("RLD / RS", f"{selected_product_row.get('RLD') or 'No'} / {selected_product_row.get('RS') or 'No'}")
+                with st.expander("Strength / dose strategy"):
+                    st.caption("Dose strength matters for BE. Use this section to document the reference strength selected from Orange Book and the proposed test strength.")
+                    d1, d2 = st.columns(2)
+                    with d1:
+                        st.text_input("Reference strength selected", value=selected_product_row.get("Strength", ""), key="be_reference_strength")
+                    with d2:
+                        st.text_input("Proposed test strength", value="", key="be_test_strength")
+                    st.selectbox(
+                        "Dose / strength strategy",
+                        ["Same strength direct BE", "Additional strength biowaiver", "Dose-proportional formulation bridge", "Strength mismatch requires strategy review"],
+                        key="be_strength_strategy",
+                    )
+                    st.info("For ANDA/generic strategy, confirm RLD/RS, strength, dosage form, and whether the proposed test strength is the same as the reference or requires additional-strength/biowaiver justification.")
             else:
                 st.info(ob.get("error") or "No Orange Book match returned. Try the active ingredient or proprietary name.")
             st.markdown(f"[Open FDA Orange Book search]({ob.get('source_url')})")
@@ -733,50 +784,58 @@ st.caption("Ontology + ToxiGuard-AI + ToxiScope + Bioequivalence strategy are co
 render_platform_quick_start()
 render_primary_chemical_start()
 input_name = (st.session_state.active_chemical_name or st.session_state.primary_chemical_name).strip()
+render_module_navigation()
 render_strategy_dashboard()
 
-col1, col2 = st.columns([1.5, 1])
+if st.session_state.active_screen in {"Genotoxicity QSAR", "Integrated Evidence"}:
+    st.markdown("---")
+    st.markdown("<div class='accent-text'>Genotoxicity QSAR Detail</div>", unsafe_allow_html=True)
+    st.markdown("## ICH M7 / QSAR Assessment")
+    st.caption("This focused screen shows chemical identity, structural alerts, expert/statistical QSAR, impurity/degradation evidence, and the regulatory narrative.")
 
-with col1:
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown("### Manual Identity Override")
-    st.caption("Use this only when automatic name resolution fails or when you need to assess a specific impurity/degradation product SMILES directly.")
-    st.write(f"**Current primary chemical**: {input_name or 'Not defined'}")
+    col1, col2 = st.columns([1.5, 1])
 
-    input_smiles = st.text_area(
-        "Compound SMILES",
-        key="smiles",
-        height=110,
-        help="If name search fails, paste a valid SMILES here and run the assessment manually.",
-    )
-    if input_smiles:
-        st.caption("SMILES resolved. You can edit it manually and re-run the assessment.")
+    with col1:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.markdown("### Manual Identity Override")
+        st.caption("Use this only when automatic name resolution fails or when you need to assess a specific impurity/degradation product SMILES directly.")
+        st.write(f"**Current primary chemical**: {input_name or 'Not defined'}")
 
-    if st.button("Run QSAR / impurity / degradation assessment from SMILES", use_container_width=True):
+        input_smiles = st.text_area(
+            "Compound SMILES",
+            key="smiles",
+            height=110,
+            help="If name search fails, paste a valid SMILES here and run the assessment manually.",
+        )
         if input_smiles:
-            with st.spinner("Analyzing toxicity and degradation..."):
-                run_assessment(input_name or "manually submitted compound", input_smiles)
-        else:
-            st.warning("Please provide a SMILES string.")
-    st.info("Recommended workflow: enter the chemical/API name in Start Here, then use this panel only for manual SMILES correction.")
-    st.markdown("</div>", unsafe_allow_html=True)
+            st.caption("SMILES resolved. You can edit it manually and re-run the assessment.")
 
-with col2:
-    if st.session_state.results:
-        res = st.session_state.results
-        status_color = "badge-class1" if "Class 1" in res['class'] or "Class 2" in res['class'] else "badge-class3" if "Class 3" in res['class'] else "badge-class5"
-        st.markdown(f"""
-        <div class='glass-card' style='text-align: center;'>
-            <div class='accent-text'>Assessment Result</div>
-            <h2 style='font-size: 3rem; margin-top: 1rem;'>{res['class']}</h2>
-            <div class='badge {status_color}' style='display: inline-block; margin-top: 1rem;'>{res['status']}</div>
-            <p style='margin-top: 1.5rem; color: #94a3b8;'>Validated through Harness R01-R13 gates</p>
-        </div>
-        """, unsafe_allow_html=True)
+        if st.button("Run QSAR / impurity / degradation assessment from SMILES", use_container_width=True):
+            if input_smiles:
+                with st.spinner("Analyzing toxicity and degradation..."):
+                    run_assessment(input_name or "manually submitted compound", input_smiles)
+            else:
+                st.warning("Please provide a SMILES string.")
+        st.info("Recommended workflow: enter the chemical/API name in Start Here, then use this panel only for manual SMILES correction.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-render_bioequivalence_module()
+    with col2:
+        if st.session_state.results:
+            res = st.session_state.results
+            status_color = "badge-class1" if "Class 1" in res['class'] or "Class 2" in res['class'] else "badge-class3" if "Class 3" in res['class'] else "badge-class5"
+            st.markdown(f"""
+            <div class='glass-card' style='text-align: center;'>
+                <div class='accent-text'>Assessment Result</div>
+                <h2 style='font-size: 3rem; margin-top: 1rem;'>{res['class']}</h2>
+                <div class='badge {status_color}' style='display: inline-block; margin-top: 1rem;'>{res['status']}</div>
+                <p style='margin-top: 1.5rem; color: #94a3b8;'>Validated through Harness R01-R13 gates</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-if st.session_state.results:
+if st.session_state.active_screen in {"Bioequivalence", "Integrated Evidence"}:
+    render_bioequivalence_module()
+
+if st.session_state.results and st.session_state.active_screen in {"Genotoxicity QSAR", "Integrated Evidence"}:
     st.markdown("---")
     structure_smiles = st.session_state.smiles or st.session_state.results.get("canonical_smiles")
     profile = build_structure_profile(structure_smiles)
@@ -1065,7 +1124,7 @@ if st.session_state.results:
         else:
             st.warning("Harness report is not available for this run.")
 
-else:
+elif st.session_state.active_screen in {"Genotoxicity QSAR", "Integrated Evidence"}:
     st.image("./hero.png", use_container_width=True)
     st.markdown("<div style='text-align: center; color: #64748b;'>Enter a compound name above to begin QSAR, impurity, and degradation assessment.</div>", unsafe_allow_html=True)
 
