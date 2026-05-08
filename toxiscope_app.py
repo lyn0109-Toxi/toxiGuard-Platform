@@ -325,9 +325,10 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
             f"<text x='{width - 116}' y='40' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='800' fill='#ede9fe'>{label}</text>"
         )
     legend_parts = [
-        f"<rect x='18' y='{height - 47}' width='214' height='30' rx='15' fill='#111827' stroke='#334155' stroke-width='1' />",
-        f"<circle cx='39' cy='{height - 32}' r='8' fill='#22c55e' /><text x='52' y='{height - 28}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#bbf7d0'>H-bond donor</text>",
-        f"<circle cx='147' cy='{height - 32}' r='8' fill='#f59e0b' /><text x='160' y='{height - 28}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#fde68a'>acceptor</text>",
+        f"<rect x='18' y='{height - 50}' width='370' height='34' rx='17' fill='#111827' stroke='#334155' stroke-width='1' />",
+        f"<rect x='32' y='{height - 40}' width='18' height='18' rx='5' fill='#7f1d1d' stroke='#fb4d5d' stroke-width='2' /><text x='58' y='{height - 26}' font-family='Arial, sans-serif' font-size='12' font-weight='800' fill='#fecdd3'>Genotoxic alert</text>",
+        f"<circle cx='173' cy='{height - 31}' r='8' fill='#22c55e' /><text x='186' y='{height - 27}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#bbf7d0'>H-bond donor</text>",
+        f"<circle cx='292' cy='{height - 31}' r='8' fill='#f59e0b' /><text x='305' y='{height - 27}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#fde68a'>acceptor</text>",
     ]
 
     return (
@@ -397,6 +398,28 @@ def toxic_alerts(result):
             continue
         seen.add(key)
         rows.append(alert)
+    return rows
+
+def genotoxic_alert_rows(result):
+    rows = []
+    for alert in toxic_alerts(result):
+        if alert.get("alert") == "Known Mutagen/Carcinogen":
+            link = "Experimental genotoxicity evidence"
+            functional_group = "Whole molecule / known positive record"
+            alert_type = "Historical positive"
+        else:
+            link = alert.get("mechanism") or alert.get("reasoning") or "Structural alert linked to DNA-reactive mutagenicity review."
+            functional_group = alert.get("alert")
+            alert_type = "Structural alert"
+        rows.append(
+            {
+                "Type": alert_type,
+                "Functional group / structural region": functional_group,
+                "Genotoxicity linkage": link,
+                "Matched atoms": alert.get("matched_atoms", "N/A"),
+                "Evidence": alert.get("reference") or alert.get("evidence") or "N/A",
+            }
+        )
     return rows
 
 def collect_evidence_alert_atoms(evidence_objects):
@@ -482,28 +505,33 @@ if st.session_state.results:
     with map_col1:
         if profile:
             show_molecule(profile["mol"], highlighted_atoms, width=620, height=420)
-            st.caption("Highlighted atoms indicate mapped toxicophore / QSAR alert regions.")
+            st.caption("Red/pink regions = genotoxic structural alert. D/A markers = hydrogen-bond physicochemical annotation, not genotoxicity by itself.")
         else:
             st.warning("Structure parsing is not available for the submitted SMILES.")
     with map_col2:
-        st.markdown("#### Toxicity-Driving Structural Features")
+        st.markdown("#### Genotoxicity-Linked Functional Groups")
         if alert_list:
+            st.dataframe(pd.DataFrame(genotoxic_alert_rows(st.session_state.results)), use_container_width=True, hide_index=True)
             for idx, alert in enumerate(alert_list, 1):
                 severity = "error" if alert.get("method") == "Historical Evidence" else "warning"
-                message = f"**{idx}. {alert.get('alert')}**  \n{alert.get('mechanism') or alert.get('reasoning')}"
+                mechanism = alert.get("mechanism") or alert.get("reasoning")
+                label = "Experimental evidence" if alert.get("alert") == "Known Mutagen/Carcinogen" else "Structural alert"
+                message = f"**{idx}. {alert.get('alert')}** ({label})  \n{mechanism}"
                 if severity == "error":
                     st.error(message)
                 else:
                     st.warning(message)
                 with st.expander(f"Details: {alert.get('alert')}"):
                     st.write(f"**Method**: {alert.get('method', 'N/A')}")
+                    st.write("**Interpretation**: This item is treated as genotoxicity-relevant under the current ICH M7/QSAR logic.")
                     st.write(f"**Matched atoms**: {alert.get('matched_atoms', 'N/A')}")
                     st.write(f"**Reference / Evidence**: {alert.get('reference') or alert.get('evidence') or 'N/A'}")
                     st.write(f"**Reasoning**: {alert.get('reasoning', 'N/A')}")
                     if alert.get("expert_comment"):
                         st.write(f"**Expert comment**: {alert.get('expert_comment')}")
         else:
-            st.success("No toxicophore was mapped by the current expert/statistical screen.")
+            st.success("No genotoxic structural alert was mapped by the current expert/statistical screen.")
+            st.info("Hydrogen-bond donor/acceptor markers and ion-pair labels describe physicochemical behavior only. They are not treated as genotoxic alerts unless an ICH M7 structural alert is also mapped.")
 
         exp_data = get_experimental_detail(st.session_state.results.get("canonical_smiles") or st.session_state.smiles)
         if exp_data:
