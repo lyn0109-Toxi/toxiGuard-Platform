@@ -39,7 +39,9 @@ except ImportError as e:
 try:
     from rdkit.Chem.Draw import rdMolDraw2D
     RDKIT_DRAW_AVAILABLE = True
-except ImportError:
+    RDKIT_DRAW_ERROR = ""
+except ImportError as e:
+    RDKIT_DRAW_ERROR = str(e)
     RDKIT_DRAW_AVAILABLE = False
 
 # --- Page Configuration ---
@@ -186,21 +188,28 @@ def render_molecule_svg(mol, highlight_atoms=None, width=620, height=420):
         highlightAtoms=highlight_atoms or [],
     )
     drawer.FinishDrawing()
-    return drawer.GetDrawingText().replace("svg:", "")
+    raw_svg = drawer.GetDrawingText().replace("svg:", "")
+    svg_start = raw_svg.find("<svg")
+    if svg_start >= 0:
+        raw_svg = raw_svg[svg_start:]
+    raw_svg = raw_svg.replace(f"width='{width}px'", "width='100%'")
+    raw_svg = raw_svg.replace(f"height='{height}px'", "height='100%'")
+    raw_svg = raw_svg.replace(f'width="{width}px"', 'width="100%"')
+    raw_svg = raw_svg.replace(f'height="{height}px"', 'height="100%"')
+    return raw_svg
 
 def show_molecule(mol, highlight_atoms=None, width=620, height=420):
     svg = render_molecule_svg(mol, highlight_atoms=highlight_atoms, width=width, height=height)
     if not svg:
-        st.warning("Structure drawing backend is not available in this deployment.")
+        st.warning(f"Structure drawing backend is not available in this deployment. {RDKIT_DRAW_ERROR}")
         return
-    st.components.v1.html(
+    st.markdown(
         f"""
-        <div style="width:100%; display:flex; justify-content:center;">
+        <div style="width:100%; height:{height}px; display:flex; justify-content:center; align-items:center; background:#0f172a; border:1px solid rgba(255,255,255,0.1); border-radius:12px; overflow:hidden;">
             {svg}
         </div>
         """,
-        height=height + 24,
-        scrolling=False,
+        unsafe_allow_html=True,
     )
 
 def collect_alert_atoms(result):
