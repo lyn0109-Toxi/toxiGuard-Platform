@@ -221,6 +221,28 @@ def toxic_alerts(result):
         rows.append(alert)
     return rows
 
+def collect_evidence_alert_atoms(evidence_objects):
+    atoms = set()
+    for item in evidence_objects or []:
+        details = item.get("details") or {}
+        for match in details.get("matched_atoms", []) or []:
+            atoms.update(match)
+    return sorted(atoms)
+
+def evidence_alert_rows(evidence_objects):
+    rows = []
+    for item in evidence_objects or []:
+        if item.get("alert") or item.get("method"):
+            details = item.get("details") or {}
+            rows.append({
+                "Method": item.get("method") or details.get("method"),
+                "Alert": item.get("alert") or details.get("alert"),
+                "Matched atoms": details.get("matched_atoms"),
+                "Mechanism": item.get("mechanism") or details.get("mechanism"),
+                "Reasoning": item.get("reasoning"),
+            })
+    return rows
+
 st.markdown("<div class='accent-text'>Regulatory Intelligence Platform</div>", unsafe_allow_html=True)
 st.markdown("<h1 class='hero-title'>ToxiScope AI</h1>", unsafe_allow_html=True)
 
@@ -423,8 +445,16 @@ if st.session_state.results:
         if st.session_state.degradants:
             for d in st.session_state.degradants:
                 with st.expander(f"🚩 [{d['pathway']}] {d.get('name', 'Product Identification')}"):
+                    d_evidence = d.get("evidence_objects", [])
+                    d_profile = build_structure_profile(d.get("smiles"))
+                    d_alert_atoms = collect_evidence_alert_atoms(d_evidence)
                     d_col1, d_col2 = st.columns([1, 1])
                     with d_col1:
+                        if d_profile:
+                            show_molecule(d_profile["mol"], d_alert_atoms, width=440, height=300)
+                            st.caption("Degradation/impurity structure with QSAR alert atoms highlighted when available.")
+                        else:
+                            st.info("No drawable structure is loaded for this degradation product.")
                         st.write(f"**SMILES**: `{d.get('smiles')}`")
                         st.write(f"**ICH M7 Result**: {d.get('class')} ({d.get('status')})")
                         st.write(f"**Condition / Origin**: {d.get('condition')}")
@@ -440,7 +470,10 @@ if st.session_state.results:
                             st.markdown(f"[Source reference]({d['source_url']})")
                     st.markdown("**Structural/QSAR Interpretation**")
                     st.info(d.get("structural_explanation") or "No structural explanation available.")
-                    d_evidence = d.get("evidence_objects", [])
+                    d_alert_rows = evidence_alert_rows(d_evidence)
+                    if d_alert_rows:
+                        st.markdown("**Degradation Product Toxicophore Detail**")
+                        st.dataframe(pd.DataFrame(d_alert_rows), use_container_width=True, hide_index=True)
                     if d_evidence:
                         st.dataframe(pd.DataFrame([{
                             "Tier": e.get("source_tier_label"),
