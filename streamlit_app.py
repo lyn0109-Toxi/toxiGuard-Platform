@@ -125,6 +125,50 @@ st.markdown("""
 .badge-class3 { background: #f59e0b; color: white; }
 .badge-class5 { background: #10b981; color: white; }
 
+section[data-testid="stSidebar"] h1 {
+    font-size: 1.55rem;
+    color: #f8fafc;
+    margin-bottom: 0.4rem;
+}
+
+section[data-testid="stSidebar"] label {
+    color: #a5b4fc !important;
+    font-size: 0.78rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.02em;
+}
+
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea,
+section[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    color: #f8fafc !important;
+    background: rgba(15, 23, 42, 0.92) !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+.sidebar-section {
+    margin: 1.05rem 0 0.55rem;
+    padding: 0.75rem 0.75rem 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-left: 4px solid #0ea5e9;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.sidebar-section-title {
+    color: #f8fafc;
+    font-size: 0.92rem;
+    font-weight: 900;
+    line-height: 1.2;
+    margin-bottom: 0.18rem;
+}
+
+.sidebar-section-caption {
+    color: #94a3b8;
+    font-size: 0.72rem;
+    line-height: 1.25;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -158,8 +202,28 @@ if "active_screen" not in st.session_state:
 with st.sidebar:
     st.markdown("<div class='accent-text'>Harness Active</div>", unsafe_allow_html=True)
     st.title("Project Scope")
+    st.markdown(
+        "<div class='sidebar-section'><div class='sidebar-section-title'>Subject</div><div class='sidebar-section-caption'>Who owns the project and which product is being assessed.</div></div>",
+        unsafe_allow_html=True,
+    )
     project_id = st.text_input("Project ID", value="TXS-2026-001")
     analyst = st.text_input("Expert Analyst", value="Lee Young-nam")
+    reference_product = st.text_input(
+        "Reference Product / RLD Name",
+        value="",
+        help="Enter the comparator product name or RLD. Do not enter the API SMILES here.",
+    )
+    reference_smiles = st.text_area(
+        "Reference API SMILES (optional)",
+        value="",
+        height=70,
+        help="Optional. Use this only when you want to document the reference API structure separately.",
+    )
+
+    st.markdown(
+        "<div class='sidebar-section'><div class='sidebar-section-title'>Development Factors</div><div class='sidebar-section-caption'>Regulatory pathway, role view, dosage form, and dose assumptions.</div></div>",
+        unsafe_allow_html=True,
+    )
     development_stage = st.selectbox(
         "Development Stage",
         ["Preformulation", "Preclinical", "IND-enabling", "Phase 1", "Phase 2/3", "ANDA / Generic", "NDA / 505(b)(2)", "Post-approval change"],
@@ -176,20 +240,12 @@ with st.sidebar:
         ["Immediate-release tablet/capsule", "Modified-release oral solid", "Oral solution", "Injectable", "Semisolid", "Other"],
         index=0,
     )
-    reference_product = st.text_input(
-        "Reference Product / RLD Name",
-        value="",
-        help="Enter the comparator product name or RLD. Do not enter the API SMILES here.",
-    )
-    reference_smiles = st.text_area(
-        "Reference API SMILES (optional)",
-        value="",
-        height=70,
-        help="Optional. Use this only when you want to document the reference API structure separately.",
-    )
     daily_dose_mg = st.number_input("Daily Dose (mg/day)", min_value=0.001, value=10.0, step=1.0)
-    st.markdown("---")
-    st.markdown("### Compliance Rules")
+
+    st.markdown(
+        "<div class='sidebar-section'><div class='sidebar-section-title'>Compliance Factors</div><div class='sidebar-section-caption'>Locked or active rules used to drive the assessment logic.</div></div>",
+        unsafe_allow_html=True,
+    )
     st.checkbox("ICH M7(R2) Guidelines", value=True, disabled=True)
     st.checkbox("ASHBY Structural Alerts", value=True, disabled=True)
     st.checkbox("Proactive Degradation", value=True)
@@ -641,7 +697,7 @@ def render_bioequivalence_module():
         dissolution = package.get("dissolution", {})
         source_cols = st.columns(2)
         with source_cols[0]:
-            st.markdown("##### Orange Book RLD / RS candidates")
+            st.markdown("##### Reference drug product details")
             if ob.get("rows"):
                 st.dataframe(pd.DataFrame(ob["rows"]), use_container_width=True, hide_index=True)
                 preferred_rows = [
@@ -655,9 +711,13 @@ def render_bioequivalence_module():
                 selected_product = st.selectbox("Reference product / strength for BE plan", product_options)
                 selected_product_row = preferred_rows[product_options.index(selected_product)]
                 p1, p2, p3 = st.columns(3)
-                p1.metric("Reference product", selected_product_row.get("Trade name") or "N/A")
-                p2.metric("Strength", selected_product_row.get("Strength") or "N/A")
-                p3.metric("RLD / RS", f"{selected_product_row.get('RLD') or 'No'} / {selected_product_row.get('RS') or 'No'}")
+                p1.metric("Product name", selected_product_row.get("Trade name") or "N/A")
+                p2.metric("Company / applicant", selected_product_row.get("Applicant") or "N/A")
+                p3.metric("Strength", selected_product_row.get("Strength") or "N/A")
+                p4, p5, p6 = st.columns(3)
+                p4.metric("Dosage form / route", selected_product_row.get("Dosage form / route") or "N/A")
+                p5.metric("Application", selected_product_row.get("Application") or "N/A")
+                p6.metric("RLD / RS", f"{selected_product_row.get('RLD') or 'No'} / {selected_product_row.get('RS') or 'No'}")
                 with st.expander("Strength / dose strategy"):
                     st.caption("Dose strength matters for BE. Use this section to document the reference strength selected from Orange Book and the proposed test strength.")
                     d1, d2 = st.columns(2)
@@ -670,9 +730,16 @@ def render_bioequivalence_module():
                         ["Same strength direct BE", "Additional strength biowaiver", "Dose-proportional formulation bridge", "Strength mismatch requires strategy review"],
                         key="be_strength_strategy",
                     )
+                    st.write(f"**Reference company / applicant**: {selected_product_row.get('Applicant') or 'N/A'}")
+                    st.write(f"**Reference dosage form / route**: {selected_product_row.get('Dosage form / route') or 'N/A'}")
+                    st.write(f"**Reference application / product no.**: {selected_product_row.get('Application') or 'N/A'} / {selected_product_row.get('Product no.') or 'N/A'}")
                     st.info("For ANDA/generic strategy, confirm RLD/RS, strength, dosage form, and whether the proposed test strength is the same as the reference or requires additional-strength/biowaiver justification.")
             else:
-                st.info(ob.get("error") or "No Orange Book match returned. Try the active ingredient or proprietary name.")
+                drug_products = (package.get("drug_products") or {}).get("rows") or []
+                if drug_products:
+                    st.dataframe(pd.DataFrame(drug_products), use_container_width=True, hide_index=True)
+                else:
+                    st.info(ob.get("error") or "No FDA product match returned. Try the active ingredient or proprietary name.")
             st.markdown(f"[Open FDA Orange Book search]({ob.get('source_url')})")
         with source_cols[1]:
             st.markdown("##### FDA dissolution method candidates")
