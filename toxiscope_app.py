@@ -210,6 +210,64 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div {
     line-height: 1.35;
 }
 
+.developer-card {
+    margin-top: 1rem;
+    padding: 0.95rem;
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    border-radius: 10px;
+    background: rgba(2, 6, 23, 0.62);
+}
+
+.developer-name {
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 900;
+    margin-bottom: 0.2rem;
+}
+
+.developer-role {
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    margin-bottom: 0.45rem;
+}
+
+.developer-link {
+    color: #7dd3fc !important;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-decoration: none;
+}
+
+.be-product-card {
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 0.65rem 0;
+    background: rgba(15, 23, 42, 0.72);
+}
+
+.be-product-title {
+    color: #ffffff;
+    font-size: 1.18rem;
+    font-weight: 900;
+    line-height: 1.25;
+    margin-bottom: 0.35rem;
+    overflow-wrap: anywhere;
+}
+
+.be-product-line {
+    color: #dbeafe;
+    font-size: 0.92rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.be-product-label {
+    color: #7dd3fc;
+    font-weight: 900;
+}
+
 div[data-testid="stTextInput"] input[aria-label="Chemical / API name"] {
     border: 2px solid rgba(56, 189, 248, 0.9) !important;
     background: rgba(2, 6, 23, 0.88) !important;
@@ -309,6 +367,10 @@ if "integrated_run_log" not in st.session_state:
 if "active_screen" not in st.session_state:
     st.session_state.active_screen = "Strategy Dashboard"
 
+DEVELOPER_NAME = "Young-nam Lee"
+DEVELOPER_EMAIL = "lyn0109@gmail.com"
+DEVELOPER_LINKEDIN = "https://www.linkedin.com/in/youngnam-lee-b45016bb"
+
 # --- UI Layout ---
 with st.sidebar:
     st.markdown("<div class='accent-text'>Harness Active</div>", unsafe_allow_html=True)
@@ -357,6 +419,18 @@ with st.sidebar:
     st.checkbox("ASHBY Structural Alerts", value=True, disabled=True)
     st.checkbox("Proactive Degradation", value=True)
     st.checkbox("Bioequivalence / f2 Strategy", value=True)
+
+    st.markdown(
+        f"""
+        <div class='developer-card'>
+            <div class='developer-name'>Developed by {DEVELOPER_NAME}</div>
+            <div class='developer-role'>Regulatory science, CMC strategy, in silico toxicology, and bioequivalence decision support.</div>
+            <a class='developer-link' href='mailto:{DEVELOPER_EMAIL}'>Request consulting: {DEVELOPER_EMAIL}</a><br>
+            <a class='developer-link' href='{DEVELOPER_LINKEDIN}' target='_blank'>LinkedIn profile</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def run_assessment(compound_name, smiles_value):
     package = build_harnessed_evidence_package(
@@ -837,38 +911,44 @@ def render_bioequivalence_module():
                             "Source": row.get("Source", "FDA Orange Book"),
                         }
                     )
-                st.dataframe(
-                    pd.DataFrame(display_rows),
-                    use_container_width=True,
-                    hide_index=True,
-                    column_config={
-                        "Trade Name": st.column_config.TextColumn("Trade Name", width="large"),
-                        "Product Name": st.column_config.TextColumn("Product Name", width="large"),
-                        "Company / Applicant": st.column_config.TextColumn("Company / Applicant", width="large"),
-                        "Dosage Strength": st.column_config.TextColumn("Dosage Strength", width="large"),
-                        "Dosage Form": st.column_config.TextColumn("Dosage Form", width="medium"),
-                        "Route": st.column_config.TextColumn("Route", width="small"),
-                        "Application": st.column_config.TextColumn("Application", width="medium"),
-                    },
-                )
+                with st.expander("View all FDA product candidates", expanded=True):
+                    for idx, row in enumerate(display_rows[:8], 1):
+                        st.markdown(
+                            f"""
+                            <div class='be-product-card'>
+                                <div class='be-product-title'>{idx}. {row.get('Trade Name') or 'N/A'}</div>
+                                <div class='be-product-line'><span class='be-product-label'>Product Name:</span> {row.get('Product Name') or 'N/A'}</div>
+                                <div class='be-product-line'><span class='be-product-label'>Company / Applicant:</span> {row.get('Company / Applicant') or 'N/A'}</div>
+                                <div class='be-product-line'><span class='be-product-label'>Dosage Strength:</span> {row.get('Dosage Strength') or 'Not listed in source'}</div>
+                                <div class='be-product-line'><span class='be-product-label'>Dosage Form / Route:</span> {row.get('Dosage Form') or 'N/A'} / {row.get('Route') or 'N/A'}</div>
+                                <div class='be-product-line'><span class='be-product-label'>Application:</span> {row.get('Application') or 'N/A'} | <span class='be-product-label'>RLD / RS:</span> {row.get('RLD') or 'No'} / {row.get('RS') or 'No'} | <span class='be-product-label'>Source:</span> {row.get('Source') or 'FDA'}</div>
+                            </div>
+                            """,
+                            unsafe_allow_html=True,
+                        )
                 preferred_rows = [
                     row for row in ob["rows"]
                     if str(row.get("RLD", "")).lower() == "yes" or str(row.get("RS", "")).lower() == "yes"
                 ] or ob["rows"]
                 product_options = [
-                    f"{idx + 1}. Trade Name: {row.get('Trade name')} | Dosage Strength: {row.get('Strength')} | {row.get('Dosage form / route')} | RLD {row.get('RLD')} | RS {row.get('RS')}"
+                    f"{idx + 1}. {row.get('Trade name')} | {row.get('Strength') or 'Dosage strength not listed'} | {row.get('Applicant')} | {row.get('Dosage form / route')}"
                     for idx, row in enumerate(preferred_rows)
                 ]
                 selected_product = st.selectbox("Reference trade name / dosage strength for BE plan", product_options)
                 selected_product_row = preferred_rows[product_options.index(selected_product)]
-                p1, p2, p3 = st.columns(3)
-                p1.metric("Trade Name / Product Name", selected_product_row.get("Trade name") or "N/A")
-                p2.metric("Company / applicant", selected_product_row.get("Applicant") or "N/A")
-                p3.metric("Dosage Strength", selected_product_row.get("Strength") or "N/A")
-                p4, p5, p6 = st.columns(3)
-                p4.metric("Dosage form / route", selected_product_row.get("Dosage form / route") or "N/A")
-                p5.metric("Application", selected_product_row.get("Application") or "N/A")
-                p6.metric("RLD / RS", f"{selected_product_row.get('RLD') or 'No'} / {selected_product_row.get('RS') or 'No'}")
+                st.markdown(
+                    f"""
+                    <div class='be-product-card'>
+                        <div class='be-product-title'>Selected reference: {selected_product_row.get('Trade name') or 'N/A'}</div>
+                        <div class='be-product-line'><span class='be-product-label'>Product Name:</span> {selected_product_row.get('Trade name') or 'N/A'}</div>
+                        <div class='be-product-line'><span class='be-product-label'>Company / Applicant:</span> {selected_product_row.get('Applicant') or 'N/A'}</div>
+                        <div class='be-product-line'><span class='be-product-label'>Dosage Strength:</span> {selected_product_row.get('Strength') or 'Not listed in source'}</div>
+                        <div class='be-product-line'><span class='be-product-label'>Dosage Form / Route:</span> {selected_product_row.get('Dosage form / route') or 'N/A'}</div>
+                        <div class='be-product-line'><span class='be-product-label'>Application:</span> {selected_product_row.get('Application') or 'N/A'} | <span class='be-product-label'>Product No.:</span> {selected_product_row.get('Product no.') or 'N/A'} | <span class='be-product-label'>RLD / RS:</span> {selected_product_row.get('RLD') or 'No'} / {selected_product_row.get('RS') or 'No'}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
                 st.caption(f"Reference detail source: {selected_product_row.get('Source') or 'FDA Orange Book'}")
                 with st.expander("Dosage strength / dose strategy"):
                     st.caption("Dosage Strength is the amount of active ingredient per dosage unit listed for the reference product. Dose is the administered amount in a BE study. Both matter for BE strategy.")
@@ -998,6 +1078,53 @@ def render_bioequivalence_module():
                 - Final strategy should be interpreted with product-specific FDA guidance, USP method, RLD characteristics, dosage form, BCS class, and formulation proportionality.
                 """
             )
+
+def render_consultation_request():
+    st.markdown("---")
+    st.markdown("<div class='accent-text'>Consulting Request</div>", unsafe_allow_html=True)
+    st.markdown("## Regulatory / CMC / BE Consulting")
+    st.caption("Request support for QSAR/ICH M7 strategy, impurity/degradation control, FDA bioequivalence planning, or integrated regulatory development.")
+
+    with st.form("consulting_request_form"):
+        c1, c2 = st.columns(2)
+        with c1:
+            requester_name = st.text_input("Your name / company")
+            requester_email = st.text_input("Your email")
+            topic = st.selectbox(
+                "Consulting topic",
+                [
+                    "Regulatory development strategy",
+                    "ICH M7 / QSAR toxicology",
+                    "Impurity and degradation control",
+                    "FDA bioequivalence / dissolution strategy",
+                    "Integrated ToxiGuard-Platform demo",
+                ],
+            )
+        with c2:
+            compound = st.text_input("Product / compound", value=st.session_state.active_chemical_name or st.session_state.primary_chemical_name)
+            timeline = st.selectbox("Timeline", ["Exploratory", "This month", "1-3 months", "Urgent review"])
+            submission_context = st.selectbox("Submission context", ["ANDA", "NDA / 505(b)(2)", "IND", "DMF", "IMPD / CTA", "Post-approval change", "Other"])
+        message = st.text_area("Brief request", height=120, placeholder="Describe the product, issue, target market, and decision you need to make.")
+        submitted = st.form_submit_button("Prepare email request", use_container_width=True)
+
+    if submitted:
+        subject = f"ToxiGuard consulting request - {topic}"
+        body = "\n".join(
+            [
+                f"Name / company: {requester_name}",
+                f"Requester email: {requester_email}",
+                f"Topic: {topic}",
+                f"Product / compound: {compound}",
+                f"Timeline: {timeline}",
+                f"Submission context: {submission_context}",
+                "",
+                "Request:",
+                message,
+            ]
+        )
+        mailto = f"mailto:{DEVELOPER_EMAIL}?subject={urllib.parse.quote(subject)}&body={urllib.parse.quote(body)}"
+        st.success("Consulting request prepared.")
+        st.markdown(f"[Send consulting request to {DEVELOPER_EMAIL}]({mailto})")
 
 st.markdown("<div class='accent-text'>Regulatory Development Strategy Platform</div>", unsafe_allow_html=True)
 st.markdown("<h1 class='hero-title'>ToxiGuard-Platform</h1>", unsafe_allow_html=True)
@@ -1349,6 +1476,8 @@ if st.session_state.results and st.session_state.active_screen in {"Genotoxicity
 elif st.session_state.active_screen in {"Genotoxicity QSAR", "Integrated Evidence"}:
     st.image("./hero.png", use_container_width=True)
     st.markdown("<div style='text-align: center; color: #64748b;'>Enter a compound name above to begin QSAR, impurity, and degradation assessment.</div>", unsafe_allow_html=True)
+
+render_consultation_request()
 
 st.markdown("---")
 st.caption(f"ToxiGuard-Platform v1.0 | Harness: {project_id} | Security Level: R01-R13")
