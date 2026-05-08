@@ -30,7 +30,7 @@ except ImportError as e:
 # Streamlit Cloud can have drawing-backend differences.
 try:
     from rdkit import Chem
-    from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors
+    from rdkit.Chem import Descriptors, Lipinski, rdDepictor, rdMolDescriptors
     RDKIT_AVAILABLE = True
 except ImportError as e:
     RDKIT_IMPORT_ERROR = str(e)
@@ -174,9 +174,103 @@ def build_structure_profile(smiles_value):
         "heavy_atoms": mol.GetNumHeavyAtoms(),
     }
 
-def render_molecule_svg(mol, highlight_atoms=None, width=620, height=420):
-    if not RDKIT_DRAW_AVAILABLE or mol is None:
+def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
+    if mol is None:
         return None
+    highlight_atoms = set(highlight_atoms or [])
+    work_mol = Chem.Mol(mol)
+    try:
+        rdDepictor.Compute2DCoords(work_mol)
+    except Exception:
+        return None
+
+    conf = work_mol.GetConformer()
+    coords = []
+    for atom in work_mol.GetAtoms():
+        pos = conf.GetAtomPosition(atom.GetIdx())
+        coords.append((pos.x, pos.y))
+    if not coords:
+        return None
+
+    min_x = min(x for x, _ in coords)
+    max_x = max(x for x, _ in coords)
+    min_y = min(y for _, y in coords)
+    max_y = max(y for _, y in coords)
+    span_x = max(max_x - min_x, 1.0)
+    span_y = max(max_y - min_y, 1.0)
+    pad = 36
+    scale = min((width - 2 * pad) / span_x, (height - 2 * pad) / span_y)
+
+    def xy(atom_idx):
+        x, y = coords[atom_idx]
+        return (
+            pad + (x - min_x) * scale,
+            height - (pad + (y - min_y) * scale),
+        )
+
+    bond_parts = []
+    for bond in work_mol.GetBonds():
+        a1 = bond.GetBeginAtomIdx()
+        a2 = bond.GetEndAtomIdx()
+        x1, y1 = xy(a1)
+        x2, y2 = xy(a2)
+        order = bond.GetBondTypeAsDouble()
+        color = "#94a3b8"
+        stroke_width = 2.4
+        if a1 in highlight_atoms or a2 in highlight_atoms:
+            color = "#fb7185"
+            stroke_width = 4.2
+        bond_parts.append(
+            f"<line x1='{x1:.1f}' y1='{y1:.1f}' x2='{x2:.1f}' y2='{y2:.1f}' stroke='{color}' stroke-width='{stroke_width}' stroke-linecap='round' />"
+        )
+        if order >= 2:
+            dx = x2 - x1
+            dy = y2 - y1
+            length = max((dx * dx + dy * dy) ** 0.5, 1.0)
+            off_x = -dy / length * 4
+            off_y = dx / length * 4
+            bond_parts.append(
+                f"<line x1='{x1 + off_x:.1f}' y1='{y1 + off_y:.1f}' x2='{x2 + off_x:.1f}' y2='{y2 + off_y:.1f}' stroke='{color}' stroke-width='1.4' stroke-linecap='round' />"
+            )
+
+    atom_parts = []
+    for atom in work_mol.GetAtoms():
+        idx = atom.GetIdx()
+        x, y = xy(idx)
+        symbol = atom.GetSymbol()
+        charge = atom.GetFormalCharge()
+        if charge > 0:
+            symbol = f"{symbol}+"
+        elif charge < 0:
+            symbol = f"{symbol}-"
+        is_hetero = symbol not in {"C", "H"}
+        is_highlight = idx in highlight_atoms
+        if is_highlight or is_hetero:
+            fill = "#fb7185" if is_highlight else "#38bdf8"
+            text_color = "#ffffff" if is_highlight else "#e0f2fe"
+            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='13' fill='{fill}' opacity='0.95' />")
+            atom_parts.append(
+                f"<text x='{x:.1f}' y='{y + 4:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='700' fill='{text_color}'>{symbol}</text>"
+            )
+        elif atom.GetDegree() == 0:
+            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='11' fill='#64748b' opacity='0.9' />")
+            atom_parts.append(
+                f"<text x='{x:.1f}' y='{y + 4:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#f8fafc'>{symbol}</text>"
+            )
+
+    return (
+        f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' width='100%' height='100%' role='img'>"
+        f"<rect width='100%' height='100%' rx='12' fill='#0f172a' />"
+        + "".join(bond_parts)
+        + "".join(atom_parts)
+        + "</svg>"
+    )
+
+def render_molecule_svg(mol, highlight_atoms=None, width=620, height=420):
+    if mol is None:
+        return None
+    if not RDKIT_DRAW_AVAILABLE:
+        return _simple_svg_for_molecule(mol, highlight_atoms=highlight_atoms, width=width, height=height)
     drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
     options = drawer.drawOptions()
     options.clearBackground = False
@@ -201,7 +295,7 @@ def render_molecule_svg(mol, highlight_atoms=None, width=620, height=420):
 def show_molecule(mol, highlight_atoms=None, width=620, height=420):
     svg = render_molecule_svg(mol, highlight_atoms=highlight_atoms, width=width, height=height)
     if not svg:
-        st.warning(f"Structure drawing backend is not available in this deployment. {RDKIT_DRAW_ERROR}")
+        st.warning("Structure rendering failed for this molecule.")
         return
     st.markdown(
         f"""
