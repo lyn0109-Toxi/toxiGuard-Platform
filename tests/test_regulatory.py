@@ -8,7 +8,7 @@ from core.regulatory import (
     assess_genotoxicity,
     predict_degradation_products,
 )
-from core.bioequivalence import DEFAULT_DISSOLUTION_PROFILE, calculate_f2
+from core.bioequivalence import DEFAULT_DISSOLUTION_PROFILE, calculate_f2, sampling_times_to_profile
 from core.ontology import build_strategy_snapshot, build_submission_workflow
 
 def test_sync():
@@ -100,6 +100,15 @@ def test_sync():
         print(f"✅ Strategy ontology connected: overall risk = {snapshot['overall_risk']}")
     else:
         print("❌ Strategy ontology failed.")
+
+    # 9. Test FDA dissolution sampling-time profile setup
+    print("--- Building FDA dissolution sampling-time table ---")
+    method_row = {"Recommended sampling times": "5, 10, 15, 20, 30 and 45"}
+    profile = sampling_times_to_profile(method_row)
+    if list(profile["Time (min)"]) == [5, 10, 15, 20, 30, 45]:
+        print("✅ FDA sampling times converted to dissolution input table.")
+    else:
+        print(f"❌ Sampling time conversion failed: {list(profile['Time (min)'])}")
 
 if __name__ == "__main__":
     test_sync()

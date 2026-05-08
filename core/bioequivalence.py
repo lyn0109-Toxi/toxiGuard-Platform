@@ -1,13 +1,18 @@
 import csv
+import io
 import math
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from dataclasses import dataclass
+from html.parser import HTMLParser
 
 import numpy as np
 import pandas as pd
+import requests
 
 
 DEFAULT_DISSOLUTION_PROFILE = pd.DataFrame(
@@ -49,6 +54,162 @@ FDA_BE_GUIDANCE_SOURCES = [
         "URL": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/dissolution-testing-and-acceptance-criteria-immediate-release-solid-oral-dosage-form-drug-products",
     },
 ]
+
+ORANGE_BOOK_ZIP_URL = "https://www.fda.gov/media/76860/download?attachment="
+ORANGE_BOOK_SEARCH_URL = "https://www.accessdata.fda.gov/scripts/cder/ob/index.cfm"
+FDA_DISSOLUTION_ALL_URL = "https://www.accessdata.fda.gov/scripts/cder/dissolution/dsp_getallData.cfm"
+FDA_DISSOLUTION_SEARCH_URL = "https://www.accessdata.fda.gov/scripts/cder/dissolution/index.cfm"
+
+
+class _TableParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.rows = []
+        self._row = None
+        self._cell = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "tr":
+            self._row = []
+        elif tag in {"td", "th"} and self._row is not None:
+            self._cell = []
+
+    def handle_data(self, data):
+        if self._cell is not None:
+            self._cell.append(data)
+
+    def handle_endtag(self, tag):
+        if tag in {"td", "th"} and self._row is not None and self._cell is not None:
+            value = " ".join(" ".join(self._cell).split())
+            self._row.append(value)
+            self._cell = None
+        elif tag == "tr" and self._row is not None:
+            if any(self._row):
+                self.rows.append(self._row)
+            self._row = None
+
+
+def _contains_query(value, query):
+    return query.lower() in str(value or "").lower()
+
+
+def _read_orange_book_products(timeout=20):
+    response = requests.get(ORANGE_BOOK_ZIP_URL, timeout=timeout)
+    response.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+        product_file = next(name for name in archive.namelist() if name.lower().endswith("products.txt"))
+        with archive.open(product_file) as handle:
+            return pd.read_csv(handle, sep="~", dtype=str).fillna("")
+
+
+def search_orange_book_reference(query, limit=12):
+    if not query or len(query.strip()) < 3:
+        return {"rows": [], "error": "Enter at least three characters.", "source_url": ORANGE_BOOK_SEARCH_URL}
+    try:
+        products = _read_orange_book_products()
+        mask = products.apply(
+            lambda row: _contains_query(row.get("Ingredient"), query) or _contains_query(row.get("Trade_Name"), query),
+            axis=1,
+        )
+        matches = products.loc[mask].copy()
+        if matches.empty:
+            return {"rows": [], "error": "", "source_url": ORANGE_BOOK_SEARCH_URL}
+        priority = matches.get("RLD", "").eq("Yes").astype(int) + matches.get("RS", "").eq("Yes").astype(int)
+        matches = matches.assign(_priority=priority).sort_values(["_priority", "Trade_Name"], ascending=[False, True])
+        rows = []
+        for _, item in matches.head(limit).iterrows():
+            rows.append(
+                {
+                    "Ingredient": item.get("Ingredient", ""),
+                    "Trade name": item.get("Trade_Name", ""),
+                    "Applicant": item.get("Applicant_Full_Name", item.get("Applicant", "")),
+                    "Strength": item.get("Strength", ""),
+                    "Dosage form / route": item.get("DF;Route", ""),
+                    "Application": f"{item.get('Appl_Type', '')}{item.get('Appl_No', '')}",
+                    "Product no.": item.get("Product_No", ""),
+                    "TE code": item.get("TE_Code", ""),
+                    "RLD": item.get("RLD", ""),
+                    "RS": item.get("RS", ""),
+                    "Approval date": item.get("Approval_Date", ""),
+                    "Marketing status": item.get("Type", ""),
+                }
+            )
+        return {"rows": rows, "error": "", "source_url": ORANGE_BOOK_SEARCH_URL}
+    except Exception as exc:
+        return {"rows": [], "error": f"Orange Book lookup unavailable: {exc}", "source_url": ORANGE_BOOK_SEARCH_URL}
+
+
+def _dissolution_rows_from_html(html):
+    parser = _TableParser()
+    parser.feed(html)
+    rows = []
+    for row in parser.rows:
+        if len(row) >= 8 and row[0].lower() != "drug name":
+            rows.append(
+                {
+                    "Drug name": row[0],
+                    "Dosage form": row[1],
+                    "USP apparatus": row[2],
+                    "Speed (RPM)": row[3],
+                    "Medium": row[4],
+                    "Volume (mL)": row[5],
+                    "Recommended sampling times": row[6],
+                    "Date updated": row[7],
+                }
+            )
+    return rows
+
+
+def search_fda_dissolution_methods(query, limit=12):
+    if not query or len(query.strip()) < 3:
+        return {"rows": [], "error": "Enter at least three characters.", "source_url": FDA_DISSOLUTION_SEARCH_URL}
+    try:
+        response = requests.get(FDA_DISSOLUTION_ALL_URL, timeout=20)
+        response.raise_for_status()
+        rows = _dissolution_rows_from_html(response.text)
+        matches = [row for row in rows if _contains_query(row.get("Drug name"), query)]
+        return {"rows": matches[:limit], "error": "", "source_url": FDA_DISSOLUTION_SEARCH_URL}
+    except Exception as exc:
+        return {"rows": [], "error": f"FDA Dissolution Methods lookup unavailable: {exc}", "source_url": FDA_DISSOLUTION_SEARCH_URL}
+
+
+def sampling_times_to_profile(method_row, default_n=12):
+    time_text = method_row.get("Recommended sampling times", "") if method_row else ""
+    numbers = [float(value) for value in re.findall(r"\d+(?:\.\d+)?", time_text)]
+    if "hour" in time_text.lower():
+        numbers = [value * 60 for value in numbers]
+    times = sorted({int(value) if float(value).is_integer() else value for value in numbers if value > 0})
+    if not times:
+        return DEFAULT_DISSOLUTION_PROFILE.copy()
+    return pd.DataFrame(
+        [
+            {
+                "Time (min)": time,
+                "Reference Mean (%)": 0.0,
+                "Reference SD": 0.0,
+                "Reference n": default_n,
+                "Test Mean (%)": 0.0,
+                "Test SD": 0.0,
+                "Test n": default_n,
+            }
+            for time in times
+        ]
+    )
+
+
+def lookup_reference_product_package(query):
+    orange_book = search_orange_book_reference(query)
+    dissolution = search_fda_dissolution_methods(query)
+    return {
+        "query": query,
+        "orange_book": orange_book,
+        "dissolution": dissolution,
+        "notes": [
+            "Orange Book identifies approved drug products, RLD, RS, TE code, strength, and application information.",
+            "FDA Dissolution Methods Database provides recommended method conditions and sampling times.",
+            "Actual reference/test dissolution percentages are generally not published as a structured FDA dataset; enter laboratory or internal profile data for f2 calculation.",
+        ],
+    }
 
 
 @dataclass

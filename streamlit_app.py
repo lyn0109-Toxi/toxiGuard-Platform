@@ -27,6 +27,8 @@ try:
         calculate_f2,
         dissolution_profile_summary,
         FDA_BE_GUIDANCE_SOURCES,
+        lookup_reference_product_package,
+        sampling_times_to_profile,
     )
     from core.ontology import (
         FDA_GUIDANCE_MAP,
@@ -141,6 +143,12 @@ if "evidence_package" not in st.session_state:
     st.session_state.evidence_package = None
 if "be_profile" not in st.session_state:
     st.session_state.be_profile = DEFAULT_DISSOLUTION_PROFILE.copy()
+if "fda_reference_package" not in st.session_state:
+    st.session_state.fda_reference_package = None
+if "primary_chemical_name" not in st.session_state:
+    st.session_state.primary_chemical_name = ""
+if "integrated_run_log" not in st.session_state:
+    st.session_state.integrated_run_log = []
 
 # --- UI Layout ---
 with st.sidebar:
@@ -164,7 +172,17 @@ with st.sidebar:
         ["Immediate-release tablet/capsule", "Modified-release oral solid", "Oral solution", "Injectable", "Semisolid", "Other"],
         index=0,
     )
-    reference_product = st.text_input("Reference Product / RLD", value="")
+    reference_product = st.text_input(
+        "Reference Product / RLD Name",
+        value="",
+        help="Enter the comparator product name or RLD. Do not enter the API SMILES here.",
+    )
+    reference_smiles = st.text_area(
+        "Reference API SMILES (optional)",
+        value="",
+        height=70,
+        help="Optional. Use this only when you want to document the reference API structure separately.",
+    )
     daily_dose_mg = st.number_input("Daily Dose (mg/day)", min_value=0.001, value=10.0, step=1.0)
     st.markdown("---")
     st.markdown("### Compliance Rules")
@@ -185,6 +203,42 @@ def run_assessment(compound_name, smiles_value):
     st.session_state.results = package["assessment"]
     st.session_state.degradants = package["degradation_products"]
     st.session_state.known_impurities = package["known_impurity_matches"]
+
+def build_integrated_assessment(chemical_name):
+    name = (chemical_name or "").strip()
+    if not name:
+        return ["Enter a chemical/API name first."]
+
+    log = []
+    st.session_state.primary_chemical_name = name
+
+    res = get_smiles_from_name(name)
+    if res:
+        st.session_state.smiles = res["smiles"]
+        st.session_state.identity = res
+        run_assessment(name, res["smiles"])
+        log.append(f"Resolved SMILES from {res.get('source', 'identity source')}.")
+        log.append("Completed QSAR, ICH M7, impurity, and degradation assessment.")
+    else:
+        log.append("SMILES resolution failed. Enter SMILES manually in the manual override panel.")
+
+    fda_package = lookup_reference_product_package(name)
+    st.session_state.fda_reference_package = fda_package
+    dissolution_rows = (fda_package.get("dissolution") or {}).get("rows") or []
+    if dissolution_rows:
+        st.session_state.be_profile = sampling_times_to_profile(dissolution_rows[0])
+        log.append("Found FDA dissolution method candidates and applied the first method's sampling times.")
+    else:
+        log.append("No FDA dissolution method was automatically matched; use the FDA source link or enter dissolution time points manually.")
+
+    orange_book_rows = (fda_package.get("orange_book") or {}).get("rows") or []
+    if orange_book_rows:
+        log.append("Found Orange Book RLD/RS candidates.")
+    else:
+        log.append("No Orange Book RLD/RS candidate was automatically matched.")
+
+    st.session_state.integrated_run_log = log
+    return log
 
 def build_structure_profile(smiles_value):
     if not RDKIT_AVAILABLE or not smiles_value:
@@ -494,11 +548,98 @@ def render_strategy_dashboard():
     with dash_tab3:
         st.dataframe(pd.DataFrame(FDA_GUIDANCE_MAP), use_container_width=True, hide_index=True)
 
+def render_platform_quick_start():
+    st.markdown("### How to use this platform")
+    q1, q2, q3, q4 = st.columns(4)
+    q1.info("**1. Start with chemical name**\n\nEnter the API, impurity, or degradant name once.")
+    q2.info("**2. Auto-build identity**\n\nThe platform resolves SMILES and runs QSAR / ICH M7 assessment.")
+    q3.info("**3. Connect evidence**\n\nImpurity, degradation, Orange Book, and FDA dissolution sources are searched.")
+    q4.info("**4. Complete BE profile**\n\nFDA sampling times are prepared; enter observed dissolution values for f2 bootstrap.")
+
+def render_primary_chemical_start():
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.markdown("### Start Here: Chemical / API Name")
+    st.caption("This is the primary input for the whole platform. One chemical name connects identity, QSAR, impurity/degradation, FDA reference product lookup, dissolution method search, and BE strategy.")
+    start_col1, start_col2 = st.columns([1.35, 0.65])
+    with start_col1:
+        st.text_input(
+            "Chemical / API name",
+            key="primary_chemical_name",
+            placeholder="e.g. amlodipine, telmisartan, aniline, brivaracetam",
+            help="Use the active ingredient name for product-level strategy, or an impurity/degradant name for targeted ICH M7 assessment.",
+        )
+    with start_col2:
+        st.write("")
+        st.write("")
+        if st.button("Build Integrated Assessment", use_container_width=True):
+            if st.session_state.primary_chemical_name.strip():
+                with st.spinner("Resolving identity, running QSAR, and searching FDA reference sources..."):
+                    build_integrated_assessment(st.session_state.primary_chemical_name)
+            else:
+                st.warning("Enter a chemical/API name first.")
+
+    if st.session_state.integrated_run_log:
+        st.markdown("#### Integrated run status")
+        for item in st.session_state.integrated_run_log:
+            st.write(f"- {item}")
+    st.markdown("</div>", unsafe_allow_html=True)
+
 def render_bioequivalence_module():
     st.markdown("---")
     st.markdown("<div class='accent-text'>Bioequivalence Strategy</div>", unsafe_allow_html=True)
-    st.markdown("## 의약품동등성 용출 비교")
-    st.caption("FDA BE guidance 맥락에서 Reference와 Test의 시간별 평균 용출률, 표준편차, n수를 입력하고 bootstrap 기반 f2 similarity factor를 계산합니다.")
+    st.markdown("## Comparative Dissolution and Bioequivalence")
+    st.caption("Search the FDA reference product and dissolution method first, then enter laboratory reference/test dissolution values for f2 bootstrap analysis.")
+
+    st.markdown("#### FDA Reference Product and Method Lookup")
+    lookup_col1, lookup_col2 = st.columns([1.2, 0.8])
+    with lookup_col1:
+        reference_lookup_query = st.text_input(
+            "Reference product, RLD, or active ingredient",
+            value=reference_product or input_name or "",
+            placeholder="e.g. amlodipine, Norvasc, telmisartan",
+            help="The lookup searches FDA Orange Book and FDA Dissolution Methods Database. Generic active ingredient names usually work best for dissolution methods.",
+        )
+    with lookup_col2:
+        st.write("")
+        st.write("")
+        if st.button("Search FDA reference and dissolution method", use_container_width=True):
+            if reference_lookup_query and len(reference_lookup_query.strip()) >= 3:
+                with st.spinner("Searching FDA Orange Book and Dissolution Methods Database..."):
+                    st.session_state.fda_reference_package = lookup_reference_product_package(reference_lookup_query.strip())
+            else:
+                st.warning("Enter at least three characters for FDA lookup.")
+
+    package = st.session_state.get("fda_reference_package")
+    if package:
+        ob = package.get("orange_book", {})
+        dissolution = package.get("dissolution", {})
+        source_cols = st.columns(2)
+        with source_cols[0]:
+            st.markdown("##### Orange Book RLD / RS candidates")
+            if ob.get("rows"):
+                st.dataframe(pd.DataFrame(ob["rows"]), use_container_width=True, hide_index=True)
+            else:
+                st.info(ob.get("error") or "No Orange Book match returned. Try the active ingredient or proprietary name.")
+            st.markdown(f"[Open FDA Orange Book search]({ob.get('source_url')})")
+        with source_cols[1]:
+            st.markdown("##### FDA dissolution method candidates")
+            if dissolution.get("rows"):
+                st.dataframe(pd.DataFrame(dissolution["rows"]), use_container_width=True, hide_index=True)
+                method_options = [
+                    f"{idx + 1}. {row.get('Drug name')} | {row.get('Dosage form')} | {row.get('Recommended sampling times')}"
+                    for idx, row in enumerate(dissolution["rows"])
+                ]
+                selected_method = st.selectbox("Use sampling times from FDA method", method_options)
+                selected_index = method_options.index(selected_method)
+                if st.button("Apply FDA sampling times to dissolution table", use_container_width=True):
+                    st.session_state.be_profile = sampling_times_to_profile(dissolution["rows"][selected_index])
+                    st.success("FDA sampling times were applied. Enter observed reference/test dissolution percentages before calculating f2.")
+            else:
+                st.info(dissolution.get("error") or "No FDA dissolution method match returned. Try the generic active ingredient.")
+            st.markdown(f"[Open FDA Dissolution Methods search]({dissolution.get('source_url')})")
+        with st.expander("FDA lookup interpretation"):
+            for note in package.get("notes", []):
+                st.write(f"- {note}")
 
     be_col1, be_col2 = st.columns([1.15, 0.85])
     with be_col1:
@@ -545,9 +686,9 @@ def render_bioequivalence_module():
             st.write(f"**FDA strategy decision**: {be_result.fda_decision}")
             st.write(f"**FDA submission risk**: {be_result.fda_risk}")
             if be_result.f2 >= 50:
-                st.success("Reference와 Test의 평균 용출패턴은 FDA dissolution profile comparison의 f2 기준상 유사성 근거로 사용할 수 있습니다.")
+                st.success("The reference and test dissolution profiles support an FDA-style f2 similarity rationale.")
             else:
-                st.error("f2가 50 미만입니다. FDA 제출전략상 비교용출만으로 유사성 주장을 하기 어렵고, 처방/공정/입도/결정형/용출법 또는 in vivo BE 전략 검토가 필요합니다.")
+                st.error("f2 is below 50. Comparative dissolution alone is not sufficient for a similarity rationale; review formulation, process, particle size, polymorph, dissolution method, or in vivo BE strategy.")
             st.info(be_result.fda_next_action)
             if be_result.cv_flag == "Acceptable":
                 st.success("Time-point variability is within the screening threshold.")
@@ -560,9 +701,9 @@ def render_bioequivalence_module():
                 st.write(f"**Median f2**: {be_result.bootstrap_median}")
                 st.write(f"**5th-95th percentile**: {be_result.bootstrap_p05} - {be_result.bootstrap_p95}")
                 st.write(f"**2.5th-97.5th percentile**: {be_result.ci_low} - {be_result.ci_high}")
-                st.info("Bootstrap은 각 time point의 평균, 표준편차, n수를 이용해 reference/test 용출률을 반복 재표본화하고, 반복마다 f2를 다시 계산하는 방식입니다.")
+                st.info("Bootstrap repeatedly resamples reference/test dissolution values from each time point using the entered mean, SD, and n, then recalculates f2 for each iteration.")
         else:
-            st.info("표를 입력한 뒤 f2 계산을 실행하세요.")
+            st.info("Enter dissolution data and run the f2 bootstrap calculation.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("#### FDA Bioequivalence Guidance Basis")
@@ -576,10 +717,10 @@ def render_bioequivalence_module():
             st.markdown(
                 """
                 **FDA-oriented regulatory interpretation**
-                - f2 >= 50: FDA dissolution profile comparison에서 reference와 test의 유사성 근거로 사용할 수 있습니다.
-                - f2 < 50: 비교용출만으로 동등성 주장을 하기 어렵고, 제품별 FDA 권장 용출법/USP 방법과 in vivo BE 필요성을 재검토해야 합니다.
-                - 초기 time point 변동성은 20%, 이후 time point 변동성은 10%를 넘으면 편차 근거를 별도로 설명하는 것이 좋습니다.
-                - 최종 제출 판단은 제품별 FDA guidance, product-specific guidance, USP method, RLD 특성, dosage form, BCS, formulation proportionality와 함께 검토해야 합니다.
+                - f2 >= 50: supports a dissolution-profile similarity rationale under FDA-style interpretation.
+                - f2 < 50: comparative dissolution alone is not enough; review the product-specific FDA method, USP method, or the need for in vivo BE.
+                - Variability above 20% at early time points or above 10% at later time points should be justified.
+                - Final strategy should be interpreted with product-specific FDA guidance, USP method, RLD characteristics, dosage form, BCS class, and formulation proportionality.
                 """
             )
 
@@ -587,39 +728,35 @@ st.markdown("<div class='accent-text'>Regulatory Development Strategy Platform</
 st.markdown("<h1 class='hero-title'>ToxiGuard-Platform</h1>", unsafe_allow_html=True)
 st.caption("Ontology + ToxiGuard-AI + ToxiScope + Bioequivalence strategy are connected through one project-level decision workflow.")
 
+render_platform_quick_start()
+render_primary_chemical_start()
+input_name = st.session_state.primary_chemical_name.strip()
 render_strategy_dashboard()
 
 col1, col2 = st.columns([1.5, 1])
 
 with col1:
     st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown("### 🔍 Chemical Identification")
-    
-    input_name = st.text_input("Compound Name", placeholder="e.g. Brivaracetam, Aniline...")
-    
-    if st.button("🔍 Search SMILES from Name", use_container_width=True):
-        if input_name:
-            with st.spinner(f"Resolving '{input_name}'..."):
-                res = get_smiles_from_name(input_name)
-                if res:
-                    st.session_state.smiles = res['smiles']
-                    st.session_state.identity = res
-                    st.success(f"Found via {res['source']}")
-                    with st.spinner("Running regulatory assessment..."):
-                        run_assessment(input_name, res["smiles"])
-                else:
-                    st.error("Name resolution failed. Please input SMILES manually.")
+    st.markdown("### Manual Identity Override")
+    st.caption("Use this only when automatic name resolution fails or when you need to assess a specific impurity/degradation product SMILES directly.")
+    st.write(f"**Current primary chemical**: {input_name or 'Not defined'}")
 
-    input_smiles = st.text_area("SMILES String", key="smiles", height=110)
+    input_smiles = st.text_area(
+        "Compound SMILES",
+        key="smiles",
+        height=110,
+        help="If name search fails, paste a valid SMILES here and run the assessment manually.",
+    )
     if input_smiles:
         st.caption("SMILES resolved. You can edit it manually and re-run the assessment.")
 
-    if st.button("🚀 Run Regulatory Assessment", use_container_width=True):
+    if st.button("Run QSAR / impurity / degradation assessment from SMILES", use_container_width=True):
         if input_smiles:
             with st.spinner("Analyzing toxicity and degradation..."):
-                run_assessment(input_name, input_smiles)
+                run_assessment(input_name or "manually submitted compound", input_smiles)
         else:
             st.warning("Please provide a SMILES string.")
+    st.info("Recommended workflow: enter the chemical/API name in Start Here, then use this panel only for manual SMILES correction.")
     st.markdown("</div>", unsafe_allow_html=True)
 
 with col2:
@@ -928,7 +1065,7 @@ if st.session_state.results:
 
 else:
     st.image("./hero.png", use_container_width=True)
-    st.markdown("<div style='text-align: center; color: #64748b;'>Precision regulatory decision support platform.</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #64748b;'>Enter a compound name above to begin QSAR, impurity, and degradation assessment.</div>", unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption(f"ToxiScope AI v2.0 | Harness: {project_id} | Security Level: R01-R13")
+st.caption(f"ToxiGuard-Platform v1.0 | Harness: {project_id} | Security Level: R01-R13")
