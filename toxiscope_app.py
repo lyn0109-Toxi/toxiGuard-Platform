@@ -281,6 +281,91 @@ div[data-testid="stTextInput"] input[aria-label="Chemical / API name"] {
     padding-top: 2.6rem !important;
 }
 
+div[data-testid="stButton"] > button,
+div[data-testid="stFormSubmitButton"] > button {
+    border: 1px solid rgba(251, 191, 36, 0.78) !important;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.94), rgba(20, 184, 166, 0.88)) !important;
+    color: #04111f !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.01em;
+    box-shadow: 0 14px 32px rgba(20, 184, 166, 0.18), 0 0 0 1px rgba(251, 191, 36, 0.18) inset;
+    transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+
+div[data-testid="stButton"] > button:hover,
+div[data-testid="stFormSubmitButton"] > button:hover {
+    border-color: rgba(253, 224, 71, 0.96) !important;
+    filter: brightness(1.08) saturate(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 18px 40px rgba(20, 184, 166, 0.28), 0 0 0 2px rgba(253, 224, 71, 0.26) inset;
+}
+
+div[data-testid="stButton"] > button:focus,
+div[data-testid="stFormSubmitButton"] > button:focus {
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.34), 0 18px 40px rgba(20, 184, 166, 0.22) !important;
+}
+
+div[role="radiogroup"] {
+    gap: 0.45rem;
+}
+
+div[role="radiogroup"] label {
+    border: 1px solid rgba(45, 212, 191, 0.28);
+    border-radius: 10px;
+    padding: 0.52rem 0.7rem;
+    background: rgba(13, 148, 136, 0.12);
+    color: #ccfbf1 !important;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+div[role="radiogroup"] label:hover {
+    border-color: rgba(251, 191, 36, 0.72);
+    background: rgba(251, 191, 36, 0.14);
+    transform: translateX(2px);
+}
+
+div[role="radiogroup"] label:has(input:checked) {
+    border-color: rgba(251, 191, 36, 0.9);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.24), rgba(20, 184, 166, 0.2));
+    box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.25) inset;
+}
+
+div[data-baseweb="select"] > div {
+    border: 1px solid rgba(45, 212, 191, 0.48) !important;
+    background: rgba(13, 148, 136, 0.16) !important;
+    box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.08) inset;
+}
+
+div[data-baseweb="select"] > div:hover {
+    border-color: rgba(251, 191, 36, 0.82) !important;
+    background: rgba(251, 191, 36, 0.12) !important;
+}
+
+details[data-testid="stExpander"] {
+    border: 1px solid rgba(45, 212, 191, 0.28) !important;
+    border-radius: 10px;
+    background: rgba(2, 44, 34, 0.24);
+}
+
+details[data-testid="stExpander"] summary {
+    color: #fef3c7 !important;
+    font-weight: 900;
+}
+
+details[data-testid="stExpander"]:hover {
+    border-color: rgba(251, 191, 36, 0.7) !important;
+    background: rgba(69, 26, 3, 0.18);
+}
+
+a {
+    color: #fbbf24 !important;
+    font-weight: 800;
+}
+
+a:hover {
+    color: #5eead4 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
