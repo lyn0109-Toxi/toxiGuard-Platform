@@ -330,28 +330,7 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
 def render_molecule_svg(mol, highlight_atoms=None, width=620, height=420):
     if mol is None:
         return None
-    if not RDKIT_DRAW_AVAILABLE:
-        return _simple_svg_for_molecule(mol, highlight_atoms=highlight_atoms, width=width, height=height)
-    drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-    options = drawer.drawOptions()
-    options.clearBackground = False
-    options.setBackgroundColour((0.06, 0.09, 0.16))
-    options.legendFontSize = 16
-    rdMolDraw2D.PrepareAndDrawMolecule(
-        drawer,
-        mol,
-        highlightAtoms=highlight_atoms or [],
-    )
-    drawer.FinishDrawing()
-    raw_svg = drawer.GetDrawingText().replace("svg:", "")
-    svg_start = raw_svg.find("<svg")
-    if svg_start >= 0:
-        raw_svg = raw_svg[svg_start:]
-    raw_svg = raw_svg.replace(f"width='{width}px'", "width='100%'")
-    raw_svg = raw_svg.replace(f"height='{height}px'", "height='100%'")
-    raw_svg = raw_svg.replace(f'width="{width}px"', 'width="100%"')
-    raw_svg = raw_svg.replace(f'height="{height}px"', 'height="100%"')
-    return raw_svg
+    return _simple_svg_for_molecule(mol, highlight_atoms=highlight_atoms, width=width, height=height)
 
 def show_molecule(mol, highlight_atoms=None, width=620, height=420):
     svg = render_molecule_svg(mol, highlight_atoms=highlight_atoms, width=width, height=height)
@@ -485,12 +464,12 @@ if st.session_state.results:
     alert_list = toxic_alerts(st.session_state.results)
     highlighted_atoms = collect_alert_atoms(st.session_state.results)
 
-    st.markdown("<div class='accent-text'>Toxicophore Map</div>", unsafe_allow_html=True)
+    st.markdown("<div class='accent-text'>Molecular Structure</div>", unsafe_allow_html=True)
     map_col1, map_col2 = st.columns([1.05, 1.25])
     with map_col1:
         if profile:
             show_molecule(profile["mol"], highlighted_atoms, width=620, height=420)
-            st.caption("Wikipedia-style skeletal formula. Pale red halos mark genotoxic structural alert regions when present.")
+            st.caption("Wikipedia-style skeletal formula. Pale red halos mark genotoxic structural-alert regions when present.")
         else:
             st.warning("Structure parsing is not available for the submitted SMILES.")
     with map_col2:
@@ -533,12 +512,12 @@ if st.session_state.results:
     tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧫 Structural Elucidation", "⚖️ Evidence Matrix", "🧬 Degradation Profile", "📚 USP/EP/DMF Ref", "📝 Regulatory Draft", "🧾 Harness Report"])
 
     with tab0:
-        st.markdown("<div class='accent-text'>Structure-Based Read Across</div>", unsafe_allow_html=True)
+        st.markdown("<div class='accent-text'>Encyclopedia-Style Structure View</div>", unsafe_allow_html=True)
         if profile:
             s_col1, s_col2 = st.columns([1, 1.25])
             with s_col1:
                 show_molecule(profile["mol"], highlighted_atoms, width=520, height=360)
-                st.caption("2D structure with QSAR alert atoms highlighted.")
+                st.caption("2D skeletal formula with genotoxic-alert regions highlighted only when mapped.")
             with s_col2:
                 st.markdown("#### Identity & Physicochemical Profile")
                 st.code(profile["canonical_smiles"], language="text")
@@ -634,6 +613,25 @@ if st.session_state.results:
         st.markdown("<div class='accent-text'>Compendial / FDA-Anchored Degradation Evidence</div>", unsafe_allow_html=True)
         st.caption("Known pharmacopeial related substances and stability-literature degradation products are shown before purely predicted RDKit degradation products.")
         if st.session_state.degradants:
+            st.markdown("#### Degradation Structure Gallery")
+            gallery_cols = st.columns(2)
+            for idx, d in enumerate(st.session_state.degradants):
+                d_evidence = d.get("evidence_objects", [])
+                d_profile = build_structure_profile(d.get("smiles"))
+                d_alert_atoms = collect_evidence_alert_atoms(d_evidence)
+                with gallery_cols[idx % 2]:
+                    st.markdown(f"**{d.get('name', 'Degradation product')}**")
+                    if d_profile:
+                        show_molecule(d_profile["mol"], d_alert_atoms, width=420, height=280)
+                        st.caption("Pale red halo marks genotoxic alert region when mapped.")
+                    else:
+                        st.info("Structure not loaded. Add qualified SMILES/InChI to render this degradation product.")
+                    st.write(f"**ICH M7**: {d.get('class')} ({d.get('status')})")
+                    st.write(f"**Origin**: {d.get('condition')}")
+                    if d.get("source_url"):
+                        st.markdown(f"[Source]({d['source_url']})")
+            st.markdown("---")
+
             for d in st.session_state.degradants:
                 with st.expander(f"🚩 [{d['pathway']}] {d.get('name', 'Product Identification')}"):
                     d_evidence = d.get("evidence_objects", [])
