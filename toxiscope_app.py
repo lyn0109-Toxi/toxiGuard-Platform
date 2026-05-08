@@ -9,18 +9,27 @@ import urllib.parse
 import requests
 
 # --- Robust Module Resolution ---
+from pathlib import Path
+
 def add_project_root():
-    search_path = os.path.abspath(os.path.dirname(__file__))
-    for _ in range(5):  # Climb up to 5 levels
-        if os.path.exists(os.path.join(search_path, 'core')):
-            if search_path not in sys.path:
-                sys.path.insert(0, search_path)
-            return True
-        search_path = os.path.dirname(search_path)
+    try:
+        # Check script directory and working directory
+        starts = [Path(__file__).resolve().parent, Path.cwd()]
+        for start in starts:
+            for parent in [start] + list(start.parents):
+                if (parent / 'core').is_dir():
+                    path_str = str(parent)
+                    if path_str not in sys.path:
+                        sys.path.insert(0, path_str)
+                    return True
+    except Exception:
+        pass
     return False
 
 if not add_project_root():
     st.error("Critical Error: 'core' module not found in any parent directories.")
+    st.info(f"Current Working Directory: {os.getcwd()}")
+    st.info(f"Script File: {__file__ if '__file__' in globals() else 'Unknown'}")
     st.stop()
 
 try:
@@ -503,12 +512,12 @@ a:hover {
 }
 
 .landing-shell {
-    min-height: 82vh;
+    min-height: 86vh;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 1.3rem;
-    padding: 2rem 0 1.5rem;
+    gap: 1rem;
+    padding: 1.4rem 0 1.2rem;
 }
 
 .landing-brand {
@@ -548,13 +557,14 @@ a:hover {
         linear-gradient(135deg, rgba(2, 6, 23, 0.82), rgba(8, 47, 73, 0.58)),
         rgba(15, 23, 42, 0.62);
     box-shadow: 0 24px 70px rgba(2, 6, 23, 0.36), 0 0 0 1px rgba(251, 191, 36, 0.08) inset;
-    padding: 1.3rem;
+    padding: 0.85rem;
 }
 
-.ontology-stage svg {
+.ontology-stage img {
     width: 100%;
     height: auto;
     display: block;
+    border-radius: 12px;
 }
 
 .landing-note {
