@@ -551,16 +551,16 @@ a:hover {
 
 .landing-subtitle {
     color: #dbeafe;
-    font-size: 0.93rem;
-    max-width: 1180px;
-    line-height: 1.26;
+    font-size: 0.86rem;
+    max-width: 1460px;
+    line-height: 1.18;
     margin-bottom: 0;
 }
 
 .ontology-stage {
     position: relative;
     overflow: hidden;
-    margin-top: -0.9rem;
+    margin-top: -0.28rem;
     border: 1px solid rgba(94, 234, 212, 0.42);
     border-radius: 18px;
     background:
@@ -1624,9 +1624,8 @@ def render_landing_page():
                     <h1 class='landing-title'>ToxiGuard-Platform</h1>
                 </div>
                 <div class='landing-subtitle'>
-                    Built because drug development decisions are fragmented across
-                    toxicology, CMC, impurity, RLD, dissolution, and regulatory evidence.
-                    ToxiGuard-Platform turns those evidence gaps into one development
+                    Built to turn fragmented toxicology, CMC, impurity, RLD,
+                    dissolution, and regulatory evidence into one development
                     strategy plan.
                 </div>
                 <div class='ontology-stage'>
@@ -1666,9 +1665,8 @@ def render_landing_page():
                 <h1 class='landing-title'>ToxiGuard-Platform</h1>
             </div>
             <div class='landing-subtitle'>
-                Built because drug development decisions are fragmented across
-                toxicology, CMC, impurity, RLD, dissolution, and regulatory evidence.
-                ToxiGuard-Platform turns those evidence gaps into one development
+                Built to turn fragmented toxicology, CMC, impurity, RLD,
+                dissolution, and regulatory evidence into one development
                 strategy plan.
             </div>
             <div class='ontology-stage'>
