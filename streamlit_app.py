@@ -147,6 +147,8 @@ if "fda_reference_package" not in st.session_state:
     st.session_state.fda_reference_package = None
 if "primary_chemical_name" not in st.session_state:
     st.session_state.primary_chemical_name = ""
+if "active_chemical_name" not in st.session_state:
+    st.session_state.active_chemical_name = ""
 if "integrated_run_log" not in st.session_state:
     st.session_state.integrated_run_log = []
 
@@ -210,7 +212,7 @@ def build_integrated_assessment(chemical_name):
         return ["Enter a chemical/API name first."]
 
     log = []
-    st.session_state.primary_chemical_name = name
+    st.session_state.active_chemical_name = name
 
     res = get_smiles_from_name(name)
     if res:
@@ -730,7 +732,7 @@ st.caption("Ontology + ToxiGuard-AI + ToxiScope + Bioequivalence strategy are co
 
 render_platform_quick_start()
 render_primary_chemical_start()
-input_name = st.session_state.primary_chemical_name.strip()
+input_name = (st.session_state.active_chemical_name or st.session_state.primary_chemical_name).strip()
 render_strategy_dashboard()
 
 col1, col2 = st.columns([1.5, 1])
