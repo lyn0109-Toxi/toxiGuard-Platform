@@ -171,6 +171,17 @@ def collect_alert_atoms(result):
             atoms.update(match)
     return sorted(atoms)
 
+def toxic_alerts(result):
+    rows = []
+    seen = set()
+    for alert in result.get("expert_alerts", []) + result.get("statistical_alerts", []):
+        key = (alert.get("method"), alert.get("alert"), str(alert.get("matched_atoms")))
+        if key in seen:
+            continue
+        seen.add(key)
+        rows.append(alert)
+    return rows
+
 st.markdown("<div class='accent-text'>Regulatory Intelligence Platform</div>", unsafe_allow_html=True)
 st.markdown("<h1 class='hero-title'>ToxiScope AI</h1>", unsafe_allow_html=True)
 
@@ -222,6 +233,48 @@ with col2:
 
 if st.session_state.results:
     st.markdown("---")
+    structure_smiles = st.session_state.smiles or st.session_state.results.get("canonical_smiles")
+    profile = build_structure_profile(structure_smiles)
+    alert_list = toxic_alerts(st.session_state.results)
+    highlighted_atoms = collect_alert_atoms(st.session_state.results)
+
+    st.markdown("<div class='accent-text'>Toxicophore Map</div>", unsafe_allow_html=True)
+    map_col1, map_col2 = st.columns([1.05, 1.25])
+    with map_col1:
+        if profile:
+            st.image(
+                Draw.MolToImage(profile["mol"], size=(620, 420), highlightAtoms=highlighted_atoms),
+                caption="Highlighted atoms indicate mapped toxicophore / QSAR alert regions",
+                use_container_width=True,
+            )
+        else:
+            st.warning("Structure rendering is not available for the submitted SMILES.")
+    with map_col2:
+        st.markdown("#### Toxicity-Driving Structural Features")
+        if alert_list:
+            for idx, alert in enumerate(alert_list, 1):
+                severity = "error" if alert.get("method") == "Historical Evidence" else "warning"
+                message = f"**{idx}. {alert.get('alert')}**  \n{alert.get('mechanism') or alert.get('reasoning')}"
+                if severity == "error":
+                    st.error(message)
+                else:
+                    st.warning(message)
+                with st.expander(f"Details: {alert.get('alert')}"):
+                    st.write(f"**Method**: {alert.get('method', 'N/A')}")
+                    st.write(f"**Matched atoms**: {alert.get('matched_atoms', 'N/A')}")
+                    st.write(f"**Reference / Evidence**: {alert.get('reference') or alert.get('evidence') or 'N/A'}")
+                    st.write(f"**Reasoning**: {alert.get('reasoning', 'N/A')}")
+                    if alert.get("expert_comment"):
+                        st.write(f"**Expert comment**: {alert.get('expert_comment')}")
+        else:
+            st.success("No toxicophore was mapped by the current expert/statistical screen.")
+
+        exp_data = get_experimental_detail(st.session_state.results.get("canonical_smiles") or st.session_state.smiles)
+        if exp_data:
+            with st.expander("Experimental Toxicology Evidence"):
+                st.write(exp_data.get("overall_conclusion", ""))
+                st.dataframe(pd.DataFrame(exp_data.get("assay_data", [])), use_container_width=True, hide_index=True)
+
     ttc = st.session_state.results.get('ttc_info', {})
     q_col1, q_col2, q_col3 = st.columns(3)
     with q_col1: st.metric("TTC Limit (ug/day)", f"{ttc.get('limit_ug_day')} µg")
@@ -232,10 +285,7 @@ if st.session_state.results:
 
     with tab0:
         st.markdown("<div class='accent-text'>Structure-Based Read Across</div>", unsafe_allow_html=True)
-        structure_smiles = st.session_state.smiles or st.session_state.results.get("canonical_smiles")
-        profile = build_structure_profile(structure_smiles)
         if profile:
-            highlighted_atoms = collect_alert_atoms(st.session_state.results)
             s_col1, s_col2 = st.columns([1, 1.25])
             with s_col1:
                 st.image(

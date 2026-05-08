@@ -235,6 +235,7 @@ def assess_mutagenicity(
 
     if can_smiles in KNOWN_MUTAGENS:
         known = KNOWN_MUTAGENS[can_smiles]
+        structural_alerts = get_expert_rule_assessment(can_smiles)
         alert = {
             "method": "Historical Evidence",
             "alert": "Known Mutagen/Carcinogen",
@@ -243,6 +244,7 @@ def assess_mutagenicity(
             "reference": known["evidence"],
             "reasoning": known["evidence"],
         }
+        all_known_alerts = [alert] + structural_alerts
         evidence.append(
             make_evidence(
                 compound=known["name"],
@@ -260,14 +262,38 @@ def assess_mutagenicity(
                 regulatory_mapping=["ICH M7 Class 1/2 logic"],
             )
         )
+        for structural_alert in structural_alerts:
+            evidence.append(
+                make_evidence(
+                    compound=compound_name,
+                    smiles=can_smiles,
+                    evidence_type="QSAR alert",
+                    endpoint="bacterial mutagenicity",
+                    result="Alert",
+                    source_tier="qsar",
+                    source_name="Expert rule-based QSAR",
+                    reasoning=structural_alert["reasoning"],
+                    confidence="Medium",
+                    method=structural_alert["method"],
+                    alert=structural_alert["alert"],
+                    mechanism=structural_alert["mechanism"],
+                    regulatory_mapping=["ICH M7(R2) complementary QSAR Method 1"],
+                    details=structural_alert,
+                )
+            )
+        structural_text = alert["reasoning"]
+        if structural_alerts:
+            structural_text = f"{alert['reasoning']} | " + " | ".join(
+                f"{a['alert']}: {a['mechanism']}" for a in structural_alerts
+            )
         return {
             "status": "alert",
             "class": f"ICH M7 Class {known['class']}",
-            "alerts": [alert],
-            "expert_alerts": [alert],
+            "alerts": all_known_alerts,
+            "expert_alerts": all_known_alerts,
             "statistical_alerts": [],
             "qsar_summary": {"concordance": "Historical positive", "expert_call": "Positive", "statistical_call": "Not required"},
-            "structural_explanation": alert["reasoning"],
+            "structural_explanation": structural_text,
             "evidence_objects": sort_evidence(evidence + _experimental_evidence(can_smiles, compound_name)),
             "ttc_info": ttc_info,
             "canonical_smiles": can_smiles,
