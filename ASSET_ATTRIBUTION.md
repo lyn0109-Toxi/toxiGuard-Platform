@@ -6,7 +6,11 @@ This file tracks non-code assets bundled with ToxiGuard-Platform.
 
 - File: `hero.png`
 - Current use: animated background image in the Streamlit app
-- Status: attribution and commercial-use provenance must be confirmed by the
+- Current source file used for replacement:
+  `/Users/leeyoung-nam/Desktop/Antigravity Project/ToxiGuard-AI_temp/genotoxicity.png`
+- Replacement date: 2026-05-08
+- File characteristics after replacement: PNG image, 1244 x 832, RGBA, sRGB.
+- Status: provenance and commercial-use rights should still be retained by the
   repository owner before broad commercial distribution.
 - Required action before production use:
   - Record whether the image was self-created, AI-generated, licensed, or
