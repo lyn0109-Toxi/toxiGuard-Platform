@@ -29,7 +29,7 @@ except ImportError as e:
 # Try importing RDKit
 try:
     from rdkit import Chem
-    from rdkit.Chem import Draw
+    from rdkit.Chem import Descriptors, Draw, Lipinski, rdMolDescriptors
     RDKIT_AVAILABLE = True
 except ImportError:
     RDKIT_AVAILABLE = False
@@ -144,6 +144,33 @@ def run_assessment(compound_name, smiles_value):
     st.session_state.degradants = package["degradation_products"]
     st.session_state.known_impurities = package["known_impurity_matches"]
 
+def build_structure_profile(smiles_value):
+    if not RDKIT_AVAILABLE or not smiles_value:
+        return None
+    mol = Chem.MolFromSmiles(smiles_value)
+    if not mol:
+        return None
+    return {
+        "mol": mol,
+        "canonical_smiles": Chem.MolToSmiles(mol, isomericSmiles=True),
+        "formula": rdMolDescriptors.CalcMolFormula(mol),
+        "molecular_weight": round(Descriptors.MolWt(mol), 2),
+        "logp": round(Descriptors.MolLogP(mol), 2),
+        "tpsa": round(Descriptors.TPSA(mol), 2),
+        "hbd": Lipinski.NumHDonors(mol),
+        "hba": Lipinski.NumHAcceptors(mol),
+        "rotatable_bonds": Lipinski.NumRotatableBonds(mol),
+        "ring_count": Lipinski.RingCount(mol),
+        "heavy_atoms": mol.GetNumHeavyAtoms(),
+    }
+
+def collect_alert_atoms(result):
+    atoms = set()
+    for alert in result.get("expert_alerts", []) + result.get("statistical_alerts", []):
+        for match in alert.get("matched_atoms", []) or []:
+            atoms.update(match)
+    return sorted(atoms)
+
 st.markdown("<div class='accent-text'>Regulatory Intelligence Platform</div>", unsafe_allow_html=True)
 st.markdown("<h1 class='hero-title'>ToxiScope AI</h1>", unsafe_allow_html=True)
 
@@ -201,7 +228,52 @@ if st.session_state.results:
     with q_col2: st.metric("Max Conc. (ppm)", f"{ttc.get('limit_ppm')} ppm")
     with q_col3: st.metric("Regulatory Class", st.session_state.results['class'])
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["⚖️ Evidence Matrix", "🧬 Degradation Profile", "📚 USP/EP/DMF Ref", "📝 Regulatory Draft", "🧾 Harness Report"])
+    tab0, tab1, tab2, tab3, tab4, tab5 = st.tabs(["🧫 Structural Elucidation", "⚖️ Evidence Matrix", "🧬 Degradation Profile", "📚 USP/EP/DMF Ref", "📝 Regulatory Draft", "🧾 Harness Report"])
+
+    with tab0:
+        st.markdown("<div class='accent-text'>Structure-Based Read Across</div>", unsafe_allow_html=True)
+        structure_smiles = st.session_state.smiles or st.session_state.results.get("canonical_smiles")
+        profile = build_structure_profile(structure_smiles)
+        if profile:
+            highlighted_atoms = collect_alert_atoms(st.session_state.results)
+            s_col1, s_col2 = st.columns([1, 1.25])
+            with s_col1:
+                st.image(
+                    Draw.MolToImage(profile["mol"], size=(520, 360), highlightAtoms=highlighted_atoms),
+                    caption="2D structure with QSAR alert atoms highlighted",
+                    use_container_width=True,
+                )
+            with s_col2:
+                st.markdown("#### Identity & Physicochemical Profile")
+                st.code(profile["canonical_smiles"], language="text")
+                p1, p2, p3 = st.columns(3)
+                p1.metric("Formula", profile["formula"])
+                p2.metric("MW", profile["molecular_weight"])
+                p3.metric("cLogP", profile["logp"])
+                p4, p5, p6 = st.columns(3)
+                p4.metric("TPSA", profile["tpsa"])
+                p5.metric("HBD / HBA", f"{profile['hbd']} / {profile['hba']}")
+                p6.metric("Rings", profile["ring_count"])
+                st.caption(f"Heavy atoms: {profile['heavy_atoms']} | Rotatable bonds: {profile['rotatable_bonds']}")
+
+            alert_rows = []
+            for alert in st.session_state.results.get("expert_alerts", []) + st.session_state.results.get("statistical_alerts", []):
+                alert_rows.append({
+                    "Method": alert.get("method"),
+                    "Structural alert": alert.get("alert"),
+                    "Matched atoms": alert.get("matched_atoms"),
+                    "Mechanistic interpretation": alert.get("mechanism") or alert.get("reasoning"),
+                    "Reference": alert.get("reference"),
+                })
+            if alert_rows:
+                st.markdown("#### Alert Mapping")
+                st.dataframe(pd.DataFrame(alert_rows), use_container_width=True, hide_index=True)
+            else:
+                st.success("No DNA-reactive structural alert was mapped to this structure.")
+            st.markdown("#### Regulatory Interpretation")
+            st.info(st.session_state.results.get("structural_explanation", "No structural explanation available."))
+        else:
+            st.warning("Structure rendering is not available for the submitted SMILES.")
     
     with tab1:
         st.markdown("<div class='accent-text'>ICH M7 Evidence Object Matrix</div>", unsafe_allow_html=True)
@@ -263,6 +335,8 @@ if st.session_state.results:
             st.markdown("</div>", unsafe_allow_html=True)
 
     with tab2:
+        st.markdown("<div class='accent-text'>Compendial / FDA-Anchored Degradation Evidence</div>", unsafe_allow_html=True)
+        st.caption("Known pharmacopeial related substances and stability-literature degradation products are shown before purely predicted RDKit degradation products.")
         if st.session_state.degradants:
             for d in st.session_state.degradants:
                 with st.expander(f"🚩 [{d['pathway']}] {d.get('name', 'Product Identification')}"):
@@ -273,6 +347,10 @@ if st.session_state.results:
                         st.write(f"**Condition / Origin**: {d.get('condition')}")
                         st.write(f"**Risk Level**: {d.get('risk')}")
                     with d_col2:
+                        if d.get("source_name"):
+                            st.write(f"**Evidence Source**: {d.get('source_name')}")
+                        if d.get("evidence_source_category"):
+                            st.write(f"**Source Category**: {d.get('evidence_source_category')}")
                         st.write(f"**Rationale**: {d.get('rationale')}")
                         st.write(f"**Regulatory Significance**: {d.get('significance', 'N/A')}")
                         if d.get("source_url"):
@@ -286,20 +364,30 @@ if st.session_state.results:
                             "Type": e.get("evidence_type"),
                             "Result": e.get("result"),
                             "Source": e.get("source_name"),
+                            "URL": e.get("source_url") or "",
                             "Reasoning": e.get("reasoning"),
                         } for e in d_evidence]), use_container_width=True, hide_index=True)
         else:
-            st.info("No degradation products predicted.")
+            st.info("No compound-specific degradation products are loaded or predicted yet. Use the source map below to complete targeted FDA/USP/literature review.")
+            source_rows = (st.session_state.evidence_package or {}).get("regulatory_source_map", [])
+            if source_rows:
+                st.markdown("#### Source Review Queue")
+                st.dataframe(pd.DataFrame(source_rows), use_container_width=True, hide_index=True)
 
     with tab3:
         st.markdown("<div class='accent-text'>Known Impurity / Degradation Product Search</div>", unsafe_allow_html=True)
-        pharma_info = get_pharmacopeia_info(input_name)
-        if pharma_info:
-            st.markdown("#### Parent Compound Reference")
-            st.write(f"**Monograph / Reference Context**: {pharma_info.get('monograph_ref')}")
-            st.write(f"**DMF / Control Summary**: {pharma_info.get('dmf_summary')}")
+        pharma_info = (st.session_state.evidence_package or {}).get("regulatory_profile") or get_pharmacopeia_info(input_name)
+        st.markdown("#### Parent Compound Reference")
+        if pharma_info.get("profile_type") == "curated":
+            st.success("Curated pharmacopeial/DMF-style profile loaded.")
         else:
-            st.info("No parent compound compendial profile is loaded for this compound name.")
+            st.info("No curated compound-specific impurity profile is loaded yet. The app generated a source-review map for this compound.")
+        st.write(f"**Monograph / Reference Context**: {pharma_info.get('monograph_ref')}")
+        st.write(f"**DMF / Control Summary**: {pharma_info.get('dmf_summary')}")
+        source_rows = pharma_info.get("regulatory_sources", [])
+        if source_rows:
+            st.markdown("#### FDA / Compendial Source Map")
+            st.dataframe(pd.DataFrame(source_rows), use_container_width=True, hide_index=True)
 
         matches = st.session_state.known_impurities or match_known_impurities(input_name, st.session_state.smiles)
         if matches:

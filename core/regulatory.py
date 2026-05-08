@@ -2,6 +2,7 @@ from .compendial import (
     GUIDELINE_SOURCES,
     PHARMACOPEIA_DB,
     get_pharmacopeia_info,
+    get_regulatory_profile,
     match_known_impurities,
 )
 from .degradation import DEGRADATION_RULES, predict_degradation_products
@@ -48,10 +49,13 @@ def build_evidence_package(compound_name, smiles, daily_dose_mg=10):
     assessment = assess_genotoxicity(smiles, daily_dose_mg=daily_dose_mg, compound_name=compound_name or "Submitted compound")
     known_matches = match_known_impurities(compound_name, smiles)
     degradants = predict_degradation_products(smiles, parent_name=compound_name)
+    regulatory_profile = get_regulatory_profile(compound_name, smiles)
     return {
         "assessment": assessment,
         "known_impurity_matches": known_matches,
         "degradation_products": degradants,
+        "regulatory_profile": regulatory_profile,
+        "regulatory_source_map": regulatory_profile.get("regulatory_sources", []),
         "guideline_sources": GUIDELINE_SOURCES,
         "narrative": generate_regulatory_narrative(assessment, compound_name or "the submitted compound"),
         "harness_manifest": get_harness_manifest(),

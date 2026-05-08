@@ -43,7 +43,15 @@ def known_degradation_products(parent_name: str | None) -> list[dict[str, Any]]:
     products = []
     for match in match_known_impurities(parent_name):
         origin = (match.get("origin") or "").lower()
-        if "degradation" in origin or "oxidative" in origin or "lactone" in match.get("name", "").lower():
+        source_category = (match.get("evidence_source_category") or "").lower()
+        if (
+            "degradation" in origin
+            or "oxidative" in origin
+            or "related substance" in origin
+            or "pharmacopeia" in source_category
+            or "stability" in source_category
+            or "lactone" in match.get("name", "").lower()
+        ):
             products.append(match)
     return products
 
@@ -70,18 +78,20 @@ def _known_product_result(item: dict[str, Any]) -> dict[str, Any]:
             source_url=item.get("source_url"),
             reasoning=item.get("issue") or "Known impurity/degradation product match found in the curated library.",
             confidence="High" if item.get("source_url") else "Medium",
-            regulatory_mapping=["ICH Q3A/Q3B", "ICH M7(R2) if mutagenic alert is present"],
+            regulatory_mapping=["FDA ANDA impurities guidance", "ICH Q3A/Q3B", "ICH M7(R2) if mutagenic alert is present"],
             details=item,
         )
     )
     return {
-        "pathway": "Known USP/EP/DMF degradation or related impurity",
+        "pathway": item.get("evidence_source_category") or "Known USP/EP/DMF degradation or related impurity",
         "condition": item.get("origin", "Known impurity profile"),
         "rationale": item.get("issue", ""),
-        "significance": "Known/reference impurity should be tied to monograph, stability data, and CTD 3.2.P.5.5/3.2.P.8 justification.",
-        "risk": "High" if item.get("class") == 3 else "Medium",
+        "significance": "Known/reference impurity should be tied to pharmacopeial reference standards, FDA CMC impurity expectations, stability data, and CTD 3.2.P.5.5/3.2.P.8 justification.",
+        "risk": "High" if str(item.get("class")) == "3" else "Review" if str(item.get("class")).lower() == "review" else "Medium",
         "name": item["name"],
         "source_url": item.get("source_url"),
+        "source_name": item.get("source_name"),
+        "evidence_source_category": item.get("evidence_source_category"),
         "smiles": smiles or "Structure not loaded",
         "class": toxicity.get("class"),
         "status": toxicity.get("status"),
