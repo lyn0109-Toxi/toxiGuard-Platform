@@ -102,6 +102,60 @@ st.markdown("""
     margin-bottom: 1.5rem;
 }
 
+.brand-lockup {
+    display: flex;
+    align-items: center;
+    gap: 1.05rem;
+    margin: 0.08rem 0 0.75rem;
+}
+
+.brand-mark {
+    width: 4.55rem;
+    height: 4.55rem;
+    position: relative;
+    flex: 0 0 4.55rem;
+    border: 1.5px solid rgba(94, 234, 212, 0.82);
+    border-radius: 18px;
+    background:
+        linear-gradient(135deg, rgba(20, 184, 166, 0.32), rgba(14, 165, 233, 0.18)),
+        rgba(2, 6, 23, 0.72);
+    box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.18) inset,
+        0 18px 38px rgba(14, 165, 233, 0.26),
+        0 0 34px rgba(94, 234, 212, 0.22);
+    transform: rotate(45deg);
+}
+
+.brand-mark::before {
+    content: "TG";
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #ffffff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.12rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
+    transform: rotate(-45deg);
+}
+
+.brand-mark::after {
+    content: "";
+    position: absolute;
+    width: 0.82rem;
+    height: 0.82rem;
+    right: 0.34rem;
+    top: 0.34rem;
+    border-radius: 999px;
+    background: #fbbf24;
+    box-shadow:
+        -2.45rem 0.32rem 0 #38bdf8,
+        -1.05rem 2.55rem 0 #5eead4,
+        0 0 20px rgba(251, 191, 36, 0.55);
+}
+
 .hero-title {
     font-size: 5.15rem;
     font-weight: 900;
@@ -109,9 +163,18 @@ st.markdown("""
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     line-height: 0.94;
-    margin: 0.08rem 0 0.75rem;
+    margin: 0;
     letter-spacing: 0;
     filter: drop-shadow(0 16px 34px rgba(14, 165, 233, 0.34));
+}
+
+.brand-rule {
+    width: min(620px, 72%);
+    height: 3px;
+    margin: -0.32rem 0 0.9rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #fbbf24 0%, #5eead4 38%, rgba(14, 165, 233, 0) 100%);
+    box-shadow: 0 0 22px rgba(94, 234, 212, 0.28);
 }
 
 .accent-text {
@@ -1264,7 +1327,16 @@ def render_consultation_request():
         st.markdown(f"[Send consulting request to {DEVELOPER_EMAIL}]({mailto})")
 
 st.markdown("<div class='accent-text'>Regulatory Development Strategy Platform</div>", unsafe_allow_html=True)
-st.markdown("<h1 class='hero-title'>ToxiGuard-Platform</h1>", unsafe_allow_html=True)
+st.markdown(
+    """
+    <div class='brand-lockup'>
+        <div class='brand-mark'></div>
+        <h1 class='hero-title'>ToxiGuard-Platform</h1>
+    </div>
+    <div class='brand-rule'></div>
+    """,
+    unsafe_allow_html=True,
+)
 st.caption("Ontology + ToxiGuard-AI + ToxiScope + Bioequivalence strategy are connected through one project-level decision workflow.")
 
 render_primary_chemical_start()
