@@ -1460,51 +1460,12 @@ def render_landing_page():
                 and FDA-oriented bioequivalence planning.
             </div>
             <div class='ontology-stage'>
-                <svg viewBox='0 0 1180 430' role='img' aria-label='ToxiGuard ontology map'>
-                    <defs>
-                        <linearGradient id='nodeFill' x1='0%' y1='0%' x2='100%' y2='100%'>
-                            <stop offset='0%' stop-color='rgba(20,184,166,0.88)'/>
-                            <stop offset='100%' stop-color='rgba(14,165,233,0.72)'/>
-                        </linearGradient>
-                        <linearGradient id='riskFill' x1='0%' y1='0%' x2='100%' y2='100%'>
-                            <stop offset='0%' stop-color='rgba(251,191,36,0.94)'/>
-                            <stop offset='100%' stop-color='rgba(244,63,94,0.72)'/>
-                        </linearGradient>
-                        <filter id='glow'>
-                            <feGaussianBlur stdDeviation='4' result='blur'/>
-                            <feMerge>
-                                <feMergeNode in='blur'/>
-                                <feMergeNode in='SourceGraphic'/>
-                            </feMerge>
-                        </filter>
-                    </defs>
-                    <rect x='10' y='10' width='1160' height='410' rx='24' fill='rgba(2,6,23,0.45)' stroke='rgba(94,234,212,0.24)'/>
-                    <path d='M160 220 C300 90, 470 90, 590 215 S875 345, 1010 205' fill='none' stroke='rgba(94,234,212,0.52)' stroke-width='4' stroke-dasharray='10 12'/>
-                    <path d='M160 220 L350 130 L590 215 L825 130 L1010 205' fill='none' stroke='rgba(251,191,36,0.38)' stroke-width='2'/>
-
-                    <g filter='url(#glow)'>
-                        <circle cx='160' cy='220' r='58' fill='url(#nodeFill)'/>
-                        <circle cx='350' cy='130' r='58' fill='url(#nodeFill)'/>
-                        <circle cx='590' cy='215' r='66' fill='url(#riskFill)'/>
-                        <circle cx='825' cy='130' r='58' fill='url(#nodeFill)'/>
-                        <circle cx='1010' cy='205' r='66' fill='url(#nodeFill)'/>
-                    </g>
-
-                    <text x='160' y='210' text-anchor='middle' fill='#ffffff' font-size='20' font-weight='800'>Chemical</text>
-                    <text x='160' y='236' text-anchor='middle' fill='#dbeafe' font-size='16'>Identity</text>
-                    <text x='350' y='120' text-anchor='middle' fill='#ffffff' font-size='20' font-weight='800'>QSAR</text>
-                    <text x='350' y='146' text-anchor='middle' fill='#dbeafe' font-size='16'>ICH M7</text>
-                    <text x='590' y='204' text-anchor='middle' fill='#ffffff' font-size='20' font-weight='800'>Impurity</text>
-                    <text x='590' y='230' text-anchor='middle' fill='#fff7ed' font-size='16'>Degradation</text>
-                    <text x='825' y='120' text-anchor='middle' fill='#ffffff' font-size='20' font-weight='800'>BE</text>
-                    <text x='825' y='146' text-anchor='middle' fill='#dbeafe' font-size='16'>Dissolution</text>
-                    <text x='1010' y='195' text-anchor='middle' fill='#ffffff' font-size='20' font-weight='800'>Regulatory</text>
-                    <text x='1010' y='221' text-anchor='middle' fill='#dbeafe' font-size='16'>Strategy</text>
-
-                    <rect x='86' y='304' width='1000' height='54' rx='13' fill='rgba(15,23,42,0.78)' stroke='rgba(148,163,184,0.22)'/>
-                    <text x='116' y='338' fill='#fef3c7' font-size='18' font-weight='800'>Ontology Map:</text>
-                    <text x='254' y='338' fill='#dbeafe' font-size='18'>one chemical name connects identity, toxicology evidence, CMC risk, reference product lookup, and development strategy.</text>
-                </svg>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.image("ontology_map.png", use_container_width=True)
+    st.markdown(
+        """
             </div>
             <div class='landing-note'>
                 Decision support only. Final regulatory use requires expert review,
