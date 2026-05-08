@@ -277,6 +277,50 @@ div[data-testid="stTextInput"] input[aria-label="Chemical / API name"] {
     min-height: 3.1rem;
 }
 
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input,
+div[data-testid="stTextArea"] textarea {
+    border: 1.5px solid rgba(45, 212, 191, 0.62) !important;
+    border-radius: 10px !important;
+    background: linear-gradient(135deg, rgba(2, 6, 23, 0.96), rgba(8, 47, 73, 0.74)) !important;
+    color: #f8fafc !important;
+    box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.12) inset, 0 12px 28px rgba(2, 6, 23, 0.24);
+    transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+div[data-testid="stTextInput"] input:hover,
+div[data-testid="stNumberInput"] input:hover,
+div[data-testid="stTextArea"] textarea:hover {
+    border-color: rgba(94, 234, 212, 0.95) !important;
+    background: linear-gradient(135deg, rgba(8, 47, 73, 0.94), rgba(2, 6, 23, 0.98)) !important;
+}
+
+div[data-testid="stTextInput"] input:focus,
+div[data-testid="stNumberInput"] input:focus,
+div[data-testid="stTextArea"] textarea:focus {
+    border-color: rgba(251, 191, 36, 0.98) !important;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2), 0 0 0 1px rgba(251, 191, 36, 0.4) inset !important;
+}
+
+div[data-testid="stTextInput"] input::placeholder,
+div[data-testid="stNumberInput"] input::placeholder,
+div[data-testid="stTextArea"] textarea::placeholder {
+    color: rgba(203, 213, 225, 0.62) !important;
+}
+
+div[data-testid="stTextInput"] label,
+div[data-testid="stNumberInput"] label,
+div[data-testid="stTextArea"] label {
+    color: #fef3c7 !important;
+    font-weight: 900 !important;
+}
+
+div[data-testid="stNumberInput"] button {
+    border-color: rgba(45, 212, 191, 0.5) !important;
+    color: #5eead4 !important;
+    background: rgba(13, 148, 136, 0.12) !important;
+}
+
 .block-container {
     padding-top: 2.6rem !important;
 }
