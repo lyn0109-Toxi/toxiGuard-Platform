@@ -210,20 +210,6 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
     if not coord_by_atom:
         return None
 
-    donors = set()
-    acceptors = set()
-    for atom in work_mol.GetAtoms():
-        idx = atom.GetIdx()
-        if idx not in coord_by_atom:
-            continue
-        symbol = atom.GetSymbol()
-        total_h = atom.GetTotalNumHs()
-        charge = atom.GetFormalCharge()
-        if symbol in {"N", "O", "S"} and total_h > 0:
-            donors.add(idx)
-        if symbol in {"N", "O", "S"} and charge <= 0 and atom.GetTotalValence() <= {"N": 3, "O": 2, "S": 2}.get(symbol, 4):
-            acceptors.add(idx)
-
     min_x = min(x for x, _ in coord_by_atom.values())
     max_x = max(x for x, _ in coord_by_atom.values())
     min_y = min(y for _, y in coord_by_atom.values())
@@ -242,6 +228,14 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
         )
 
     bond_parts = []
+    alert_halo_parts = []
+    if highlight_atoms:
+        for atom_idx in highlight_atoms:
+            if atom_idx in coord_by_atom:
+                hx, hy = xy(atom_idx)
+                alert_halo_parts.append(
+                    f"<circle cx='{hx:.1f}' cy='{hy:.1f}' r='24' fill='#fee2e2' stroke='#ef4444' stroke-width='1.5' opacity='0.72' />"
+                )
     for bond in work_mol.GetBonds():
         a1 = bond.GetBeginAtomIdx()
         a2 = bond.GetEndAtomIdx()
@@ -250,11 +244,11 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
         x1, y1 = xy(a1)
         x2, y2 = xy(a2)
         order = bond.GetBondTypeAsDouble()
-        color = "#e2e8f0"
-        stroke_width = 3.6
+        color = "#111827"
+        stroke_width = 2.4
         if a1 in highlight_atoms or a2 in highlight_atoms:
-            color = "#fb4d5d"
-            stroke_width = 5.8
+            color = "#b91c1c"
+            stroke_width = 3.2
         bond_parts.append(
             f"<line x1='{x1:.1f}' y1='{y1:.1f}' x2='{x2:.1f}' y2='{y2:.1f}' stroke='{color}' stroke-width='{stroke_width}' stroke-linecap='round' />"
         )
@@ -265,10 +259,20 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
             off_x = -dy / length * 4
             off_y = dx / length * 4
             bond_parts.append(
-                f"<line x1='{x1 + off_x:.1f}' y1='{y1 + off_y:.1f}' x2='{x2 + off_x:.1f}' y2='{y2 + off_y:.1f}' stroke='{color}' stroke-width='2.2' stroke-linecap='round' />"
+                f"<line x1='{x1 + off_x:.1f}' y1='{y1 + off_y:.1f}' x2='{x2 + off_x:.1f}' y2='{y2 + off_y:.1f}' stroke='{color}' stroke-width='1.5' stroke-linecap='round' />"
             )
 
     atom_parts = []
+    element_colors = {
+        "N": "#1d4ed8",
+        "O": "#dc2626",
+        "S": "#ca8a04",
+        "P": "#9333ea",
+        "F": "#15803d",
+        "Cl": "#15803d",
+        "Br": "#92400e",
+        "I": "#6b21a8",
+    }
     for atom in work_mol.GetAtoms():
         idx = atom.GetIdx()
         if idx not in coord_by_atom:
@@ -290,55 +294,36 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
         is_hetero = symbol not in {"C", "H"}
         is_highlight = idx in highlight_atoms
         if is_highlight or is_hetero:
-            label_width = max(28, 12 * len(atom_label) + 14)
-            fill = "#7f1d1d" if is_highlight else "#0f172a"
-            stroke = "#fb4d5d" if is_highlight else "#38bdf8"
-            text_color = "#fecdd3" if is_highlight else "#e0f2fe"
+            text_color = "#b91c1c" if is_highlight else element_colors.get(symbol, "#111827")
             atom_parts.append(
-                f"<rect x='{x - label_width / 2:.1f}' y='{y - 15:.1f}' width='{label_width:.1f}' height='30' rx='8' fill='{fill}' stroke='{stroke}' stroke-width='2.2' />"
+                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='18' font-weight='700' fill='{text_color}' stroke='#ffffff' stroke-width='4' paint-order='stroke'>{atom_label}</text>"
             )
-            atom_parts.append(
-                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='16' font-weight='800' fill='{text_color}'>{atom_label}</text>"
-            )
-            if idx in donors:
-                atom_parts.append(f"<circle cx='{x - label_width / 2 - 7:.1f}' cy='{y - 17:.1f}' r='8' fill='#22c55e' />")
-                atom_parts.append(f"<text x='{x - label_width / 2 - 7:.1f}' y='{y - 13.5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='9' font-weight='900' fill='#052e16'>D</text>")
-            if idx in acceptors:
-                atom_parts.append(f"<circle cx='{x + label_width / 2 + 7:.1f}' cy='{y - 17:.1f}' r='8' fill='#f59e0b' />")
-                atom_parts.append(f"<text x='{x + label_width / 2 + 7:.1f}' y='{y - 13.5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='9' font-weight='900' fill='#451a03'>A</text>")
         elif atom.GetDegree() == 0:
-            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='13' fill='#64748b' opacity='0.9' />")
             atom_parts.append(
-                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='14' font-weight='800' fill='#f8fafc'>{atom_label}</text>"
+                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='16' font-weight='700' fill='#111827'>{atom_label}</text>"
             )
 
     ion_parts = []
     if counter_ions:
         label = "Ion pair: " + ", ".join(counter_ions)
         ion_parts.append(
-            f"<line x1='{width - 240}' y1='35' x2='{width - 210}' y2='35' stroke='#a78bfa' stroke-width='2' stroke-dasharray='4 5' />"
+            f"<line x1='{width - 242}' y1='34' x2='{width - 212}' y2='34' stroke='#6d28d9' stroke-width='1.8' stroke-dasharray='4 5' />"
         )
         ion_parts.append(
-            f"<rect x='{width - 210}' y='17' width='188' height='36' rx='18' fill='#20123a' stroke='#a78bfa' stroke-width='1.4' opacity='0.97' />"
+            f"<rect x='{width - 212}' y='15' width='190' height='38' rx='19' fill='#f5f3ff' stroke='#6d28d9' stroke-width='1.4' opacity='0.98' />"
         )
         ion_parts.append(
-            f"<text x='{width - 116}' y='40' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='800' fill='#ede9fe'>{label}</text>"
+            f"<text x='{width - 117}' y='39' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='700' fill='#4c1d95'>{label}</text>"
         )
-    legend_parts = [
-        f"<rect x='18' y='{height - 50}' width='370' height='34' rx='17' fill='#111827' stroke='#334155' stroke-width='1' />",
-        f"<rect x='32' y='{height - 40}' width='18' height='18' rx='5' fill='#7f1d1d' stroke='#fb4d5d' stroke-width='2' /><text x='58' y='{height - 26}' font-family='Arial, sans-serif' font-size='12' font-weight='800' fill='#fecdd3'>Genotoxic alert</text>",
-        f"<circle cx='173' cy='{height - 31}' r='8' fill='#22c55e' /><text x='186' y='{height - 27}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#bbf7d0'>H-bond donor</text>",
-        f"<circle cx='292' cy='{height - 31}' r='8' fill='#f59e0b' /><text x='305' y='{height - 27}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#fde68a'>acceptor</text>",
-    ]
 
     return (
         f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' width='100%' height='100%' role='img'>"
-        f"<rect width='100%' height='100%' rx='12' fill='#111827' />"
-        f"<rect x='10' y='10' width='{width - 20}' height='{height - 20}' rx='18' fill='none' stroke='#334155' stroke-width='1.5' />"
+        f"<rect width='100%' height='100%' rx='12' fill='#ffffff' />"
+        f"<rect x='10' y='10' width='{width - 20}' height='{height - 20}' rx='18' fill='none' stroke='#d1d5db' stroke-width='1.2' />"
+        + "".join(alert_halo_parts)
         + "".join(bond_parts)
         + "".join(atom_parts)
         + "".join(ion_parts)
-        + "".join(legend_parts)
         + "</svg>"
     )
 
@@ -375,7 +360,7 @@ def show_molecule(mol, highlight_atoms=None, width=620, height=420):
         return
     st.markdown(
         f"""
-        <div style="width:100%; height:{height}px; display:flex; justify-content:center; align-items:center; background:#0f172a; border:1px solid rgba(255,255,255,0.1); border-radius:12px; overflow:hidden;">
+        <div style="width:100%; height:{height}px; display:flex; justify-content:center; align-items:center; background:#ffffff; border:1px solid #d1d5db; border-radius:12px; overflow:hidden;">
             {svg}
         </div>
         """,
@@ -505,7 +490,7 @@ if st.session_state.results:
     with map_col1:
         if profile:
             show_molecule(profile["mol"], highlighted_atoms, width=620, height=420)
-            st.caption("Red/pink regions = genotoxic structural alert. D/A markers = hydrogen-bond physicochemical annotation, not genotoxicity by itself.")
+            st.caption("Wikipedia-style skeletal formula. Pale red halos mark genotoxic structural alert regions when present.")
         else:
             st.warning("Structure parsing is not available for the submitted SMILES.")
     with map_col2:
@@ -531,7 +516,7 @@ if st.session_state.results:
                         st.write(f"**Expert comment**: {alert.get('expert_comment')}")
         else:
             st.success("No genotoxic structural alert was mapped by the current expert/statistical screen.")
-            st.info("Hydrogen-bond donor/acceptor markers and ion-pair labels describe physicochemical behavior only. They are not treated as genotoxic alerts unless an ICH M7 structural alert is also mapped.")
+            st.info("Element labels and ion-pair labels describe structure/physicochemical form only. They are not treated as genotoxic alerts unless an ICH M7 structural alert is also mapped.")
 
         exp_data = get_experimental_detail(st.session_state.results.get("canonical_smiles") or st.session_state.smiles)
         if exp_data:
