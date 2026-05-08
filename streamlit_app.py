@@ -185,41 +185,62 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
         return None
 
     conf = work_mol.GetConformer()
-    coords = []
+    drawable_atoms = [
+        atom.GetIdx()
+        for atom in work_mol.GetAtoms()
+        if atom.GetDegree() > 0 or atom.GetIdx() in highlight_atoms
+    ]
+    if not drawable_atoms:
+        drawable_atoms = [atom.GetIdx() for atom in work_mol.GetAtoms()]
+    counter_ions = []
     for atom in work_mol.GetAtoms():
-        pos = conf.GetAtomPosition(atom.GetIdx())
-        coords.append((pos.x, pos.y))
-    if not coords:
+        if atom.GetIdx() not in drawable_atoms:
+            symbol = atom.GetSymbol()
+            charge = atom.GetFormalCharge()
+            if charge > 0:
+                symbol = f"{symbol}+"
+            elif charge < 0:
+                symbol = f"{symbol}-"
+            counter_ions.append(symbol)
+
+    coord_by_atom = {}
+    for atom_idx in drawable_atoms:
+        pos = conf.GetAtomPosition(atom_idx)
+        coord_by_atom[atom_idx] = (pos.x, pos.y)
+    if not coord_by_atom:
         return None
 
-    min_x = min(x for x, _ in coords)
-    max_x = max(x for x, _ in coords)
-    min_y = min(y for _, y in coords)
-    max_y = max(y for _, y in coords)
+    min_x = min(x for x, _ in coord_by_atom.values())
+    max_x = max(x for x, _ in coord_by_atom.values())
+    min_y = min(y for _, y in coord_by_atom.values())
+    max_y = max(y for _, y in coord_by_atom.values())
     span_x = max(max_x - min_x, 1.0)
     span_y = max(max_y - min_y, 1.0)
-    pad = 36
+    pad = 58
     scale = min((width - 2 * pad) / span_x, (height - 2 * pad) / span_y)
+    scale = min(scale * 1.18, 150)
 
     def xy(atom_idx):
-        x, y = coords[atom_idx]
+        x, y = coord_by_atom[atom_idx]
         return (
-            pad + (x - min_x) * scale,
-            height - (pad + (y - min_y) * scale),
+            width / 2 + (x - (min_x + max_x) / 2) * scale,
+            height / 2 - (y - (min_y + max_y) / 2) * scale,
         )
 
     bond_parts = []
     for bond in work_mol.GetBonds():
         a1 = bond.GetBeginAtomIdx()
         a2 = bond.GetEndAtomIdx()
+        if a1 not in coord_by_atom or a2 not in coord_by_atom:
+            continue
         x1, y1 = xy(a1)
         x2, y2 = xy(a2)
         order = bond.GetBondTypeAsDouble()
-        color = "#94a3b8"
-        stroke_width = 2.4
+        color = "#e2e8f0"
+        stroke_width = 3.6
         if a1 in highlight_atoms or a2 in highlight_atoms:
-            color = "#fb7185"
-            stroke_width = 4.2
+            color = "#fb4d5d"
+            stroke_width = 5.8
         bond_parts.append(
             f"<line x1='{x1:.1f}' y1='{y1:.1f}' x2='{x2:.1f}' y2='{y2:.1f}' stroke='{color}' stroke-width='{stroke_width}' stroke-linecap='round' />"
         )
@@ -230,12 +251,14 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
             off_x = -dy / length * 4
             off_y = dx / length * 4
             bond_parts.append(
-                f"<line x1='{x1 + off_x:.1f}' y1='{y1 + off_y:.1f}' x2='{x2 + off_x:.1f}' y2='{y2 + off_y:.1f}' stroke='{color}' stroke-width='1.4' stroke-linecap='round' />"
+                f"<line x1='{x1 + off_x:.1f}' y1='{y1 + off_y:.1f}' x2='{x2 + off_x:.1f}' y2='{y2 + off_y:.1f}' stroke='{color}' stroke-width='2.2' stroke-linecap='round' />"
             )
 
     atom_parts = []
     for atom in work_mol.GetAtoms():
         idx = atom.GetIdx()
+        if idx not in coord_by_atom:
+            continue
         x, y = xy(idx)
         symbol = atom.GetSymbol()
         charge = atom.GetFormalCharge()
@@ -248,21 +271,34 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
         if is_highlight or is_hetero:
             fill = "#fb7185" if is_highlight else "#38bdf8"
             text_color = "#ffffff" if is_highlight else "#e0f2fe"
-            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='13' fill='{fill}' opacity='0.95' />")
+            radius = 17 if is_highlight else 15
+            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='{radius}' fill='{fill}' opacity='0.98' stroke='#0f172a' stroke-width='2' />")
             atom_parts.append(
-                f"<text x='{x:.1f}' y='{y + 4:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='700' fill='{text_color}'>{symbol}</text>"
+                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='15' font-weight='800' fill='{text_color}'>{symbol}</text>"
             )
         elif atom.GetDegree() == 0:
-            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='11' fill='#64748b' opacity='0.9' />")
+            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='13' fill='#64748b' opacity='0.9' />")
             atom_parts.append(
-                f"<text x='{x:.1f}' y='{y + 4:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#f8fafc'>{symbol}</text>"
+                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='14' font-weight='800' fill='#f8fafc'>{symbol}</text>"
             )
+
+    ion_parts = []
+    if counter_ions:
+        label = "Counter ions: " + ", ".join(counter_ions)
+        ion_parts.append(
+            f"<rect x='{width - 210}' y='18' width='188' height='34' rx='17' fill='#1e293b' stroke='#38bdf8' stroke-width='1.2' opacity='0.95' />"
+        )
+        ion_parts.append(
+            f"<text x='{width - 116}' y='40' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='700' fill='#e0f2fe'>{label}</text>"
+        )
 
     return (
         f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' width='100%' height='100%' role='img'>"
-        f"<rect width='100%' height='100%' rx='12' fill='#0f172a' />"
+        f"<rect width='100%' height='100%' rx='12' fill='#111827' />"
+        f"<rect x='10' y='10' width='{width - 20}' height='{height - 20}' rx='18' fill='none' stroke='#334155' stroke-width='1.5' />"
         + "".join(bond_parts)
         + "".join(atom_parts)
+        + "".join(ion_parts)
         + "</svg>"
     )
 
