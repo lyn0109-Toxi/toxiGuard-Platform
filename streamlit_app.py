@@ -8,11 +8,20 @@ import os
 import urllib.parse
 import requests
 
-# Add the current directory AND the root directory to sys.path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(current_dir)
-sys.path.append(current_dir)
-sys.path.append(root_dir)
+# --- Robust Module Resolution ---
+def add_project_root():
+    search_path = os.path.abspath(os.path.dirname(__file__))
+    for _ in range(5):  # Climb up to 5 levels
+        if os.path.exists(os.path.join(search_path, 'core')):
+            if search_path not in sys.path:
+                sys.path.insert(0, search_path)
+            return True
+        search_path = os.path.dirname(search_path)
+    return False
+
+if not add_project_root():
+    st.error("Critical Error: 'core' module not found in any parent directories.")
+    st.stop()
 
 try:
     from core.regulatory import (
@@ -1458,9 +1467,10 @@ def render_landing_page():
                 <h1 class='landing-title'>ToxiGuard-Platform</h1>
             </div>
             <div class='landing-subtitle'>
-                A drug-development decision architecture that turns product identity,
-                CMC risk, QSAR/ICH M7 evidence, impurity/degradation knowledge,
-                and bioequivalence planning into a development strategy plan.
+                Built because drug development decisions are fragmented across
+                toxicology, CMC, impurity, RLD, dissolution, and regulatory evidence.
+                ToxiGuard-Platform turns those evidence gaps into one development
+                strategy plan.
             </div>
             <div class='ontology-stage'>
         """,
