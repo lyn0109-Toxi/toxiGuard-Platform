@@ -1339,6 +1339,30 @@ def render_consultation_request():
         st.success("Consulting request prepared.")
         st.markdown(f"[Send consulting request to {DEVELOPER_EMAIL}]({mailto})")
 
+def render_legal_notice():
+    with st.expander("Legal, license, and regulatory-use notice", expanded=False):
+        st.markdown(
+            """
+            **ToxiGuard-Platform is a decision-support tool, not an official
+            regulatory authority system.** It is not affiliated with, endorsed
+            by, certified by, or approved by FDA, ICH, USP, EP, NIH, NCI,
+            PubChem, or any other regulatory or standards organization.
+
+            QSAR, ICH M7, impurity/degradation, and bioequivalence outputs are
+            preliminary strategy-support results. Final use requires expert
+            review, official source verification, validated laboratory data,
+            and product-specific regulatory assessment.
+
+            USP/EP and other pharmacopeial references must be verified against
+            current official licensed monographs. Do not treat this app as an
+            official compendial source. Public APIs and databases may be
+            incomplete, unavailable, rate-limited, or delayed.
+
+            Repository materials are governed by the project `LICENSE`,
+            `NOTICE.md`, `DISCLAIMER.md`, and `ASSET_ATTRIBUTION.md` files.
+            """
+        )
+
 st.markdown("<div class='accent-text'>Regulatory Development Strategy Platform</div>", unsafe_allow_html=True)
 st.markdown(
     """
@@ -1700,6 +1724,7 @@ elif st.session_state.active_screen in {"Genotoxicity QSAR", "Integrated Evidenc
     st.markdown("<div style='text-align: center; color: #64748b;'>Enter a compound name above to begin QSAR, impurity, and degradation assessment.</div>", unsafe_allow_html=True)
 
 render_consultation_request()
+render_legal_notice()
 
 st.markdown("---")
-st.caption(f"ToxiGuard-Platform v1.0 | Harness: {project_id} | Security Level: R01-R13")
+st.caption(f"ToxiGuard-Platform v1.0 | Harness: {project_id} | Security Level: R01-R13 | Decision support only; not FDA/USP/EP endorsed.")

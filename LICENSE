@@ -1,0 +1,24 @@
+Proprietary License
+
+Copyright (c) 2026 Young-nam Lee. All rights reserved.
+
+ToxiGuard-Platform, including the application source code, curated decision
+logic, user interface, documentation, and bundled non-third-party assets in
+this repository, is proprietary unless a separate written agreement says
+otherwise.
+
+You may view and run this repository only for evaluation, demonstration, or
+internal review by the repository owner. You may not copy, modify, distribute,
+sublicense, sell, host as a competing service, or use this software in
+production without prior written permission from the copyright holder.
+
+Third-party open-source packages, public data sources, government guidance
+documents, and external linked resources remain governed by their own licenses,
+terms, and conditions. This license does not grant rights in FDA, USP, EP,
+PubChem, NIH/NCI, Google Fonts, RDKit, Streamlit, pandas, NumPy, requests,
+Pillow, or any other third-party materials.
+
+This software is provided "as is", without warranty of any kind, including
+fitness for a particular purpose, regulatory acceptance, medical validity, or
+non-infringement. The copyright holder is not liable for regulatory,
+commercial, scientific, or clinical decisions made using this software.
