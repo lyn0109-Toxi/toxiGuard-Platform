@@ -210,6 +210,20 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
     if not coord_by_atom:
         return None
 
+    donors = set()
+    acceptors = set()
+    for atom in work_mol.GetAtoms():
+        idx = atom.GetIdx()
+        if idx not in coord_by_atom:
+            continue
+        symbol = atom.GetSymbol()
+        total_h = atom.GetTotalNumHs()
+        charge = atom.GetFormalCharge()
+        if symbol in {"N", "O", "S"} and total_h > 0:
+            donors.add(idx)
+        if symbol in {"N", "O", "S"} and charge <= 0 and atom.GetTotalValence() <= {"N": 3, "O": 2, "S": 2}.get(symbol, 4):
+            acceptors.add(idx)
+
     min_x = min(x for x, _ in coord_by_atom.values())
     max_x = max(x for x, _ in coord_by_atom.values())
     min_y = min(y for _, y in coord_by_atom.values())
@@ -262,35 +276,59 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
         x, y = xy(idx)
         symbol = atom.GetSymbol()
         charge = atom.GetFormalCharge()
+        total_h = atom.GetTotalNumHs()
+        h_label = ""
+        if symbol != "C" and total_h > 0:
+            h_label = "H" if total_h == 1 else f"H{total_h}"
         if charge > 0:
-            symbol = f"{symbol}+"
+            charge_label = "+"
         elif charge < 0:
-            symbol = f"{symbol}-"
+            charge_label = "-"
+        else:
+            charge_label = ""
+        atom_label = f"{symbol}{h_label}{charge_label}"
         is_hetero = symbol not in {"C", "H"}
         is_highlight = idx in highlight_atoms
         if is_highlight or is_hetero:
-            fill = "#fb7185" if is_highlight else "#38bdf8"
-            text_color = "#ffffff" if is_highlight else "#e0f2fe"
-            radius = 17 if is_highlight else 15
-            atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='{radius}' fill='{fill}' opacity='0.98' stroke='#0f172a' stroke-width='2' />")
+            label_width = max(28, 12 * len(atom_label) + 14)
+            fill = "#7f1d1d" if is_highlight else "#0f172a"
+            stroke = "#fb4d5d" if is_highlight else "#38bdf8"
+            text_color = "#fecdd3" if is_highlight else "#e0f2fe"
             atom_parts.append(
-                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='15' font-weight='800' fill='{text_color}'>{symbol}</text>"
+                f"<rect x='{x - label_width / 2:.1f}' y='{y - 15:.1f}' width='{label_width:.1f}' height='30' rx='8' fill='{fill}' stroke='{stroke}' stroke-width='2.2' />"
             )
+            atom_parts.append(
+                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='16' font-weight='800' fill='{text_color}'>{atom_label}</text>"
+            )
+            if idx in donors:
+                atom_parts.append(f"<circle cx='{x - label_width / 2 - 7:.1f}' cy='{y - 17:.1f}' r='8' fill='#22c55e' />")
+                atom_parts.append(f"<text x='{x - label_width / 2 - 7:.1f}' y='{y - 13.5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='9' font-weight='900' fill='#052e16'>D</text>")
+            if idx in acceptors:
+                atom_parts.append(f"<circle cx='{x + label_width / 2 + 7:.1f}' cy='{y - 17:.1f}' r='8' fill='#f59e0b' />")
+                atom_parts.append(f"<text x='{x + label_width / 2 + 7:.1f}' y='{y - 13.5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='9' font-weight='900' fill='#451a03'>A</text>")
         elif atom.GetDegree() == 0:
             atom_parts.append(f"<circle cx='{x:.1f}' cy='{y:.1f}' r='13' fill='#64748b' opacity='0.9' />")
             atom_parts.append(
-                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='14' font-weight='800' fill='#f8fafc'>{symbol}</text>"
+                f"<text x='{x:.1f}' y='{y + 5:.1f}' text-anchor='middle' font-family='Arial, sans-serif' font-size='14' font-weight='800' fill='#f8fafc'>{atom_label}</text>"
             )
 
     ion_parts = []
     if counter_ions:
-        label = "Counter ions: " + ", ".join(counter_ions)
+        label = "Ion pair: " + ", ".join(counter_ions)
         ion_parts.append(
-            f"<rect x='{width - 210}' y='18' width='188' height='34' rx='17' fill='#1e293b' stroke='#38bdf8' stroke-width='1.2' opacity='0.95' />"
+            f"<line x1='{width - 240}' y1='35' x2='{width - 210}' y2='35' stroke='#a78bfa' stroke-width='2' stroke-dasharray='4 5' />"
         )
         ion_parts.append(
-            f"<text x='{width - 116}' y='40' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='700' fill='#e0f2fe'>{label}</text>"
+            f"<rect x='{width - 210}' y='17' width='188' height='36' rx='18' fill='#20123a' stroke='#a78bfa' stroke-width='1.4' opacity='0.97' />"
         )
+        ion_parts.append(
+            f"<text x='{width - 116}' y='40' text-anchor='middle' font-family='Arial, sans-serif' font-size='13' font-weight='800' fill='#ede9fe'>{label}</text>"
+        )
+    legend_parts = [
+        f"<rect x='18' y='{height - 47}' width='214' height='30' rx='15' fill='#111827' stroke='#334155' stroke-width='1' />",
+        f"<circle cx='39' cy='{height - 32}' r='8' fill='#22c55e' /><text x='52' y='{height - 28}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#bbf7d0'>H-bond donor</text>",
+        f"<circle cx='147' cy='{height - 32}' r='8' fill='#f59e0b' /><text x='160' y='{height - 28}' font-family='Arial, sans-serif' font-size='12' font-weight='700' fill='#fde68a'>acceptor</text>",
+    ]
 
     return (
         f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {width} {height}' width='100%' height='100%' role='img'>"
@@ -299,6 +337,7 @@ def _simple_svg_for_molecule(mol, highlight_atoms=None, width=620, height=420):
         + "".join(bond_parts)
         + "".join(atom_parts)
         + "".join(ion_parts)
+        + "".join(legend_parts)
         + "</svg>"
     )
 
