@@ -26,3 +26,17 @@ Recommended production-safe options:
 - Use a licensed stock image with written commercial web-app rights.
 - Replace the background with CSS/canvas graphics that do not depend on
   external copyrighted imagery.
+
+## `ontology_map.png`
+
+- File: `ontology_map.png`
+- Current use: landing-page ontology map for ToxiGuard-Platform.
+- Source file selected as final:
+  `/Users/leeyoung-nam/Desktop/Antigravity Project/ToxiScope_Streamlit_Deploy/ontology_map_preview_v4.png`
+- Finalization date: 2026-05-08
+- File characteristics: PNG image, 2800 x 1750, RGB.
+- SHA-256:
+  `a2e63d89129b031708ba7873c95913fabf0716bb7201e659367c6ab86ca293a0`
+- Provenance: generated locally for this project as a custom ontology mapping
+  diagram. Do not replace with third-party ontology graphics unless rights are
+  reviewed and documented.
