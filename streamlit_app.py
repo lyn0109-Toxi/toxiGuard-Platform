@@ -506,10 +506,12 @@ if hero_bg_uri:
             background-image:
                 linear-gradient(90deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 38%, rgba(15, 23, 42, 0.72) 100%),
                 url("{hero_bg_uri}");
-            background-size: cover;
-            background-position: center;
-            opacity: 0.52;
-            transform: scale(1.06);
+            background-size: 100% auto;
+            background-repeat: no-repeat;
+            background-position: center top;
+            background-color: #0f172a;
+            opacity: 0.58;
+            transform: scale(1.01);
             animation: genotoxDrift 34s ease-in-out infinite alternate;
         }}
 
@@ -537,15 +539,15 @@ if hero_bg_uri:
 
         @keyframes genotoxDrift {{
             0% {{
-                transform: scale(1.06) translate3d(-1.5%, -1.2%, 0);
+                transform: scale(1.01) translate3d(-0.45%, -0.25%, 0);
                 filter: saturate(1.03) brightness(0.92);
             }}
             50% {{
-                transform: scale(1.11) translate3d(1.2%, 0.8%, 0);
+                transform: scale(1.035) translate3d(0.45%, 0.28%, 0);
                 filter: saturate(1.14) brightness(1.02);
             }}
             100% {{
-                transform: scale(1.08) translate3d(-0.6%, 1.4%, 0);
+                transform: scale(1.02) translate3d(-0.18%, 0.48%, 0);
                 filter: saturate(1.08) brightness(0.96);
             }}
         }}
