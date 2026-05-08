@@ -614,6 +614,7 @@ a:hover {
     position: relative;
     overflow: hidden;
     border-radius: 17px;
+    cursor: zoom-in;
     background:
         radial-gradient(circle at 18% 20%, rgba(94, 234, 212, 0.12), transparent 28%),
         radial-gradient(circle at 84% 72%, rgba(251, 191, 36, 0.08), transparent 30%),
@@ -622,7 +623,27 @@ a:hover {
     max-height: 63vh;
 }
 
-.ontology-animated-map img {
+.ontology-map-canvas {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-origin: 50% 46%;
+    transition: transform 720ms cubic-bezier(0.2, 0.8, 0.2, 1), filter 720ms ease;
+    will-change: transform;
+}
+
+.ontology-map-canvas:focus {
+    outline: none;
+}
+
+.ontology-animated-map:hover .ontology-map-canvas,
+.ontology-map-canvas:focus {
+    transform: scale(1.14);
+    filter: saturate(1.04) contrast(1.02);
+    animation: ontologyInspectPan 18s ease-in-out infinite alternate;
+}
+
+.ontology-map-canvas img {
     width: 100%;
     height: 100%;
     display: block;
@@ -633,8 +654,8 @@ a:hover {
 
 .electron {
     position: absolute;
-    width: 0.68rem;
-    height: 0.68rem;
+    width: 0.48rem;
+    height: 0.48rem;
     border-radius: 999px;
     pointer-events: none;
     z-index: 2;
@@ -644,9 +665,23 @@ a:hover {
         0 0 0 3px rgba(94, 234, 212, 0.18),
         0 0 18px rgba(94, 234, 212, 0.9),
         0 0 34px rgba(14, 165, 233, 0.55);
-    animation-duration: 5.8s;
-    animation-timing-function: ease-in-out;
+    animation-duration: 8.4s;
+    animation-timing-function: cubic-bezier(0.42, 0, 0.22, 1);
     animation-iteration-count: infinite;
+}
+
+.electron::after {
+    content: "";
+    position: absolute;
+    width: 1.55rem;
+    height: 0.16rem;
+    right: 0.16rem;
+    top: 50%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(94, 234, 212, 0.42));
+    filter: blur(1px);
+    transform: translateY(-50%);
+    opacity: 0.68;
 }
 
 .electron.gold {
@@ -657,12 +692,20 @@ a:hover {
         0 0 34px rgba(245, 158, 11, 0.52);
 }
 
+.electron.gold::after {
+    background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.44));
+}
+
 .electron.red {
     background: #fb7185;
     box-shadow:
         0 0 0 3px rgba(251, 113, 133, 0.18),
         0 0 18px rgba(251, 113, 133, 0.85),
         0 0 34px rgba(244, 63, 94, 0.48);
+}
+
+.electron.red::after {
+    background: linear-gradient(90deg, transparent, rgba(251, 113, 133, 0.44));
 }
 
 .electron.e1 { animation-name: electronWhy; animation-delay: 0s; }
@@ -683,7 +726,7 @@ a:hover {
         0 0 0 2px rgba(94, 234, 212, 0.34),
         0 0 28px rgba(94, 234, 212, 0.46),
         0 0 54px rgba(251, 191, 36, 0.16);
-    animation-duration: 5.8s;
+    animation-duration: 8.4s;
     animation-timing-function: ease-in-out;
     animation-iteration-count: infinite;
 }
@@ -703,47 +746,60 @@ a:hover {
     72% { opacity: 0; transform: scale(1); }
 }
 
+@keyframes ontologyInspectPan {
+    0% { transform: scale(1.14) translate3d(0, 0, 0); }
+    34% { transform: scale(1.16) translate3d(-1.6%, 0.8%, 0); }
+    68% { transform: scale(1.15) translate3d(1.4%, -0.7%, 0); }
+    100% { transform: scale(1.17) translate3d(-0.5%, -0.9%, 0); }
+}
+
 @keyframes electronWhy {
-    0% { left: 24.8%; top: 18.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
-    12% { opacity: 1; }
-    50% { left: 52%; top: 18.3%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    88% { opacity: 1; }
-    100% { left: 80%; top: 18.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 24.8%; top: 18.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.65) rotate(0deg); }
+    14% { opacity: 0.92; }
+    36% { left: 40%; top: 18.15%; opacity: 0.92; transform: translate(-50%, -50%) scale(0.94) rotate(4deg); }
+    63% { left: 61%; top: 18.35%; opacity: 0.88; transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
+    86% { opacity: 0.82; }
+    100% { left: 80%; top: 18.2%; opacity: 0; transform: translate(-50%, -50%) scale(0.65) rotate(0deg); }
 }
 
 @keyframes electronProduct {
-    0% { left: 12.6%; top: 40.8%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
-    16% { opacity: 1; }
-    58% { left: 27%; top: 47.4%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { left: 45.5%; top: 55.7%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 12.6%; top: 40.8%; opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(18deg); }
+    15% { opacity: 0.9; }
+    38% { left: 22%; top: 45.2%; opacity: 0.88; transform: translate(-50%, -50%) scale(0.9) rotate(20deg); }
+    68% { left: 34%; top: 50.6%; opacity: 0.86; transform: translate(-50%, -50%) scale(1) rotate(22deg); }
+    100% { left: 45.5%; top: 55.7%; opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(18deg); }
 }
 
 @keyframes electronSafety {
-    0% { left: 38%; top: 36.1%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
-    18% { opacity: 1; }
-    52% { left: 50.7%; top: 50.6%; opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-    100% { left: 63.8%; top: 36.2%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 38%; top: 36.1%; opacity: 0; transform: translate(-50%, -50%) scale(0.64) rotate(48deg); }
+    16% { opacity: 0.9; }
+    42% { left: 46%; top: 43.7%; opacity: 0.86; transform: translate(-50%, -50%) scale(0.98) rotate(48deg); }
+    68% { left: 55.4%; top: 44%; opacity: 0.86; transform: translate(-50%, -50%) scale(1) rotate(-34deg); }
+    100% { left: 63.8%; top: 36.2%; opacity: 0; transform: translate(-50%, -50%) scale(0.64) rotate(-34deg); }
 }
 
 @keyframes electronRegulatory {
-    0% { left: 56%; top: 55.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
-    15% { opacity: 1; }
-    70% { left: 82.4%; top: 55.3%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { left: 91%; top: 49%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 56%; top: 55.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.64) rotate(0deg); }
+    14% { opacity: 0.9; }
+    46% { left: 71%; top: 55.1%; opacity: 0.88; transform: translate(-50%, -50%) scale(0.98) rotate(0deg); }
+    74% { left: 84%; top: 53.2%; opacity: 0.84; transform: translate(-50%, -50%) scale(0.94) rotate(-15deg); }
+    100% { left: 91%; top: 49%; opacity: 0; transform: translate(-50%, -50%) scale(0.64) rotate(-22deg); }
 }
 
 @keyframes electronCmc {
-    0% { left: 25%; top: 70%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
-    18% { opacity: 1; }
-    60% { left: 44%; top: 78%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { left: 51%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 25%; top: 70%; opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(22deg); }
+    16% { opacity: 0.9; }
+    46% { left: 37%; top: 75%; opacity: 0.86; transform: translate(-50%, -50%) scale(0.96) rotate(22deg); }
+    72% { left: 46.5%; top: 80.4%; opacity: 0.82; transform: translate(-50%, -50%) scale(0.92) rotate(34deg); }
+    100% { left: 51%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(34deg); }
 }
 
 @keyframes electronBe {
-    0% { left: 72%; top: 70%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
-    18% { opacity: 1; }
-    60% { left: 61%; top: 78%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { left: 52%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 72%; top: 70%; opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(144deg); }
+    16% { opacity: 0.9; }
+    44% { left: 65.5%; top: 74.5%; opacity: 0.88; transform: translate(-50%, -50%) scale(0.96) rotate(144deg); }
+    72% { left: 57.2%; top: 79.5%; opacity: 0.82; transform: translate(-50%, -50%) scale(0.92) rotate(150deg); }
+    100% { left: 52%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.62) rotate(150deg); }
 }
 
 .landing-note {
@@ -1699,6 +1755,7 @@ def render_landing_page():
                 </div>
                 <div class='ontology-stage'>
             <div class='ontology-animated-map'>
+                <div class='ontology-map-canvas' tabindex='0'>
                 <img src='{ontology_map_uri}' alt='ToxiGuard-Platform ontology map' />
                 <span class='node-glow why'></span>
                 <span class='node-glow product'></span>
@@ -1714,6 +1771,7 @@ def render_landing_page():
                 <span class='electron gold e4'></span>
                 <span class='electron e5'></span>
                 <span class='electron e6'></span>
+                </div>
             </div>
                 </div>
                 <div class='landing-note'>
