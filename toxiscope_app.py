@@ -521,25 +521,49 @@ a:hover {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 0.28rem;
+    gap: 0.42rem;
     padding: 0 0 0.35rem;
 }
 
 .landing-brand {
     display: flex;
     align-items: center;
-    gap: 0.9rem;
+    gap: 1rem;
+    padding: 0.25rem 0 0.1rem;
 }
 
 .landing-brand .brand-mark {
-    width: 3.25rem;
-    height: 3.25rem;
-    flex-basis: 3.25rem;
-    border-radius: 12px;
+    width: 4.1rem;
+    height: 4.1rem;
+    flex-basis: 4.1rem;
+    border-radius: 14px;
+    box-shadow:
+        0 0 0 1px rgba(251, 191, 36, 0.18) inset,
+        0 16px 34px rgba(14, 165, 233, 0.24),
+        0 0 42px rgba(94, 234, 212, 0.22);
+}
+
+.landing-brand .brand-mark::before {
+    width: 0.56rem;
+    height: 0.56rem;
+    left: 0.82rem;
+    top: 1rem;
+    animation: landingDotA 4.2s ease-in-out infinite alternate;
+}
+
+.landing-brand .brand-mark::after {
+    width: 0.52rem;
+    height: 0.52rem;
+    right: 0.88rem;
+    bottom: 0.95rem;
+    box-shadow:
+        -1.75rem -0.65rem 0 #38bdf8,
+        0 0 24px rgba(94, 234, 212, 0.58);
+    animation: landingDotB 4.8s ease-in-out infinite alternate;
 }
 
 .landing-title {
-    font-size: clamp(2.9rem, 4.8vw, 4.7rem);
+    font-size: clamp(3.35rem, 5.2vw, 5.45rem);
     line-height: 0.92;
     margin: 0;
     font-weight: 900;
@@ -551,24 +575,31 @@ a:hover {
 
 .landing-subtitle {
     color: #dbeafe;
-    font-size: 0.86rem;
+    font-size: 0.92rem;
     max-width: 1460px;
-    line-height: 1.18;
+    line-height: 1.22;
     margin-bottom: 0;
+    padding: 0.32rem 0.72rem;
+    border-left: 3px solid rgba(251, 191, 36, 0.78);
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(15, 23, 42, 0.58), rgba(15, 23, 42, 0.08));
 }
 
 .ontology-stage {
     position: relative;
     overflow: hidden;
-    margin-top: -0.28rem;
-    border: 1px solid rgba(94, 234, 212, 0.42);
-    border-radius: 18px;
+    margin-top: 0;
+    border: 1px solid rgba(94, 234, 212, 0.58);
+    border-radius: 22px;
     background:
-        linear-gradient(135deg, rgba(2, 6, 23, 0.82), rgba(8, 47, 73, 0.58)),
+        linear-gradient(135deg, rgba(2, 6, 23, 0.9), rgba(8, 47, 73, 0.62)),
         rgba(15, 23, 42, 0.62);
-    box-shadow: 0 24px 70px rgba(2, 6, 23, 0.36), 0 0 0 1px rgba(251, 191, 36, 0.08) inset;
-    padding: 0.34rem;
-    max-height: 70vh;
+    box-shadow:
+        0 30px 80px rgba(2, 6, 23, 0.46),
+        0 0 0 1px rgba(251, 191, 36, 0.12) inset,
+        0 0 54px rgba(94, 234, 212, 0.13);
+    padding: 0.5rem;
+    max-height: 64vh;
 }
 
 .ontology-stage img {
@@ -582,10 +613,13 @@ a:hover {
 .ontology-animated-map {
     position: relative;
     overflow: hidden;
-    border-radius: 12px;
-    background: #f8fbfe;
-    height: min(70vh, 52vw);
-    max-height: 70vh;
+    border-radius: 17px;
+    background:
+        radial-gradient(circle at 18% 20%, rgba(94, 234, 212, 0.12), transparent 28%),
+        radial-gradient(circle at 84% 72%, rgba(251, 191, 36, 0.08), transparent 30%),
+        #f8fbfe;
+    height: min(63vh, 49vw);
+    max-height: 63vh;
 }
 
 .ontology-animated-map img {
@@ -714,8 +748,30 @@ a:hover {
 
 .landing-note {
     color: #94a3b8;
-    font-size: 0.92rem;
-    line-height: 1.45;
+    font-size: 0.76rem;
+    line-height: 1.2;
+    position: fixed;
+    left: 2rem;
+    bottom: 1.35rem;
+    z-index: 7;
+    max-width: 54rem;
+    padding: 0.42rem 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+    background: rgba(2, 6, 23, 0.72);
+    backdrop-filter: blur(10px);
+}
+
+@keyframes landingDotA {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    48% { transform: translate3d(1.8rem, 0.72rem, 0) scale(0.88); }
+    100% { transform: translate3d(0.72rem, 2.1rem, 0) scale(1.12); }
+}
+
+@keyframes landingDotB {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    52% { transform: translate3d(-1.65rem, -0.68rem, 0) scale(1.12); }
+    100% { transform: translate3d(-0.66rem, -2rem, 0) scale(0.86); }
 }
 
 </style>
@@ -822,9 +878,22 @@ if not st.session_state.entered_platform:
         }
         .block-container {
             max-width: 1480px !important;
-            padding-top: 0.55rem !important;
+            padding-top: 0.4rem !important;
             padding-left: 2rem !important;
             padding-right: 2rem !important;
+        }
+        div[data-testid="stButton"] {
+            position: fixed;
+            left: 50%;
+            bottom: 1.05rem;
+            z-index: 8;
+            width: min(22rem, calc(100vw - 4rem));
+            transform: translateX(-50%);
+        }
+        div[data-testid="stButton"] > button {
+            min-height: 3rem;
+            border-radius: 14px !important;
+            font-size: 1rem !important;
         }
         </style>
         """,
