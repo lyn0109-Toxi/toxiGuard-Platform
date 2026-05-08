@@ -554,12 +554,13 @@ a:hover {
     font-size: 0.93rem;
     max-width: 1180px;
     line-height: 1.26;
+    margin-bottom: 0;
 }
 
 .ontology-stage {
     position: relative;
     overflow: hidden;
-    margin-top: -0.18rem;
+    margin-top: -0.9rem;
     border: 1px solid rgba(94, 234, 212, 0.42);
     border-radius: 18px;
     background:
@@ -583,8 +584,8 @@ a:hover {
     overflow: hidden;
     border-radius: 12px;
     background: #f8fbfe;
-    height: min(69vh, 52vw);
-    max-height: 69vh;
+    height: min(70vh, 52vw);
+    max-height: 70vh;
 }
 
 .ontology-animated-map img {
@@ -592,6 +593,7 @@ a:hover {
     height: 100%;
     display: block;
     object-fit: contain;
+    object-position: center top;
     transform: none;
 }
 
@@ -1612,27 +1614,22 @@ def render_legal_notice():
         )
 
 def render_landing_page():
-    st.markdown(
-        """
-        <div class='landing-shell'>
-            <div class='accent-text'>Regulatory Development Strategy Platform</div>
-            <div class='landing-brand'>
-                <div class='brand-mark'></div>
-                <h1 class='landing-title'>ToxiGuard-Platform</h1>
-            </div>
-            <div class='landing-subtitle'>
-                Built because drug development decisions are fragmented across
-                toxicology, CMC, impurity, RLD, dissolution, and regulatory evidence.
-                ToxiGuard-Platform turns those evidence gaps into one development
-                strategy plan.
-            </div>
-            <div class='ontology-stage'>
-        """,
-        unsafe_allow_html=True,
-    )
     if ontology_map_uri:
         st.markdown(
             f"""
+            <div class='landing-shell'>
+                <div class='accent-text'>Regulatory Development Strategy Platform</div>
+                <div class='landing-brand'>
+                    <div class='brand-mark'></div>
+                    <h1 class='landing-title'>ToxiGuard-Platform</h1>
+                </div>
+                <div class='landing-subtitle'>
+                    Built because drug development decisions are fragmented across
+                    toxicology, CMC, impurity, RLD, dissolution, and regulatory evidence.
+                    ToxiGuard-Platform turns those evidence gaps into one development
+                    strategy plan.
+                </div>
+                <div class='ontology-stage'>
             <div class='ontology-animated-map'>
                 <img src='{ontology_map_uri}' alt='ToxiGuard-Platform ontology map' />
                 <span class='node-glow why'></span>
@@ -1650,13 +1647,37 @@ def render_landing_page():
                 <span class='electron e5'></span>
                 <span class='electron e6'></span>
             </div>
+                </div>
+                <div class='landing-note'>
+                    Decision support only. Final regulatory use requires expert review,
+                    official source verification, and product-specific evidence.
+                </div>
+            </div>
             """,
             unsafe_allow_html=True,
         )
     else:
+        st.markdown(
+            """
+        <div class='landing-shell'>
+            <div class='accent-text'>Regulatory Development Strategy Platform</div>
+            <div class='landing-brand'>
+                <div class='brand-mark'></div>
+                <h1 class='landing-title'>ToxiGuard-Platform</h1>
+            </div>
+            <div class='landing-subtitle'>
+                Built because drug development decisions are fragmented across
+                toxicology, CMC, impurity, RLD, dissolution, and regulatory evidence.
+                ToxiGuard-Platform turns those evidence gaps into one development
+                strategy plan.
+            </div>
+            <div class='ontology-stage'>
+            """,
+            unsafe_allow_html=True,
+        )
         st.image("ontology_map.png", use_container_width=True)
-    st.markdown(
-        """
+        st.markdown(
+            """
             </div>
             <div class='landing-note'>
                 Decision support only. Final regulatory use requires expert review,
@@ -1664,8 +1685,8 @@ def render_landing_page():
             </div>
         </div>
         """,
-        unsafe_allow_html=True,
-    )
+            unsafe_allow_html=True,
+        )
     c1, c2, c3 = st.columns([0.35, 0.3, 0.35])
     with c2:
         if st.button("Enter ToxiGuard-Platform", use_container_width=True):
