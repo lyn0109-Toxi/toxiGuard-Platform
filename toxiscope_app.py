@@ -131,6 +131,19 @@ with st.sidebar:
     st.checkbox("ASHBY Structural Alerts", value=True, disabled=True)
     st.checkbox("Proactive Degradation", value=True)
 
+def run_assessment(compound_name, smiles_value):
+    package = build_harnessed_evidence_package(
+        compound_name,
+        smiles_value,
+        daily_dose_mg=daily_dose_mg,
+        project_id=project_id,
+        analyst=analyst,
+    )
+    st.session_state.evidence_package = package
+    st.session_state.results = package["assessment"]
+    st.session_state.degradants = package["degradation_products"]
+    st.session_state.known_impurities = package["known_impurity_matches"]
+
 st.markdown("<div class='accent-text'>Regulatory Intelligence Platform</div>", unsafe_allow_html=True)
 st.markdown("<h1 class='hero-title'>ToxiScope AI</h1>", unsafe_allow_html=True)
 
@@ -150,26 +163,19 @@ with col1:
                     st.session_state.smiles = res['smiles']
                     st.session_state.identity = res
                     st.success(f"Found via {res['source']}")
+                    with st.spinner("Running regulatory assessment..."):
+                        run_assessment(input_name, res["smiles"])
                 else:
                     st.error("Name resolution failed. Please input SMILES manually.")
 
-    input_smiles = st.text_area("SMILES String", value=st.session_state.smiles, key="smiles_input_area")
-    st.session_state.smiles = input_smiles
+    input_smiles = st.text_area("SMILES String", key="smiles", height=110)
+    if input_smiles:
+        st.caption("SMILES resolved. You can edit it manually and re-run the assessment.")
 
     if st.button("🚀 Run Regulatory Assessment", use_container_width=True):
-        if st.session_state.smiles:
+        if input_smiles:
             with st.spinner("Analyzing toxicity and degradation..."):
-                package = build_harnessed_evidence_package(
-                    input_name,
-                    st.session_state.smiles,
-                    daily_dose_mg=daily_dose_mg,
-                    project_id=project_id,
-                    analyst=analyst,
-                )
-                st.session_state.evidence_package = package
-                st.session_state.results = package["assessment"]
-                st.session_state.degradants = package["degradation_products"]
-                st.session_state.known_impurities = package["known_impurity_matches"]
+                run_assessment(input_name, input_smiles)
         else:
             st.warning("Please provide a SMILES string.")
     st.markdown("</div>", unsafe_allow_html=True)
