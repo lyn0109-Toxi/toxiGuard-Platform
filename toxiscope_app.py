@@ -588,7 +588,6 @@ DEVELOPER_LINKEDIN = "https://www.linkedin.com/in/youngnam-lee-b45016bb"
 
 # --- UI Layout ---
 with st.sidebar:
-    st.markdown("<div class='accent-text'>Harness Active</div>", unsafe_allow_html=True)
     st.title("Project Scope")
     project_id = st.text_input("Project ID", value="TXS-2026-001")
     analyst = st.text_input("Expert Analyst", value="Lee Young-nam")
@@ -1729,4 +1728,4 @@ render_consultation_request()
 render_legal_notice()
 
 st.markdown("---")
-st.caption(f"ToxiGuard-Platform v1.0 | Harness: {project_id} | Security Level: R01-R13 | Decision support only; not FDA/USP/EP endorsed.")
+st.caption(f"ToxiGuard-Platform v1.0 | Project: {project_id} | Internal validation checks enabled | Decision support only; not FDA/USP/EP endorsed.")
