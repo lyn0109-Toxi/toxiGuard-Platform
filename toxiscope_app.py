@@ -821,35 +821,64 @@ def render_bioequivalence_module():
         with source_cols[0]:
             st.markdown("##### Reference drug product details")
             if ob.get("rows"):
-                st.dataframe(pd.DataFrame(ob["rows"]), use_container_width=True, hide_index=True)
+                display_rows = []
+                for row in ob["rows"]:
+                    display_rows.append(
+                        {
+                            "Trade Name": row.get("Trade name", ""),
+                            "Product Name": row.get("Trade name", ""),
+                            "Company / Applicant": row.get("Applicant", ""),
+                            "Dosage Strength": row.get("Strength", ""),
+                            "Dosage Form": (row.get("Dosage form / route", "").split(";")[0] or "").strip(),
+                            "Route": (row.get("Dosage form / route", "").split(";")[1] if ";" in row.get("Dosage form / route", "") else "").strip(),
+                            "Application": row.get("Application", ""),
+                            "RLD": row.get("RLD", ""),
+                            "RS": row.get("RS", ""),
+                            "Source": row.get("Source", "FDA Orange Book"),
+                        }
+                    )
+                st.dataframe(
+                    pd.DataFrame(display_rows),
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Trade Name": st.column_config.TextColumn("Trade Name", width="large"),
+                        "Product Name": st.column_config.TextColumn("Product Name", width="large"),
+                        "Company / Applicant": st.column_config.TextColumn("Company / Applicant", width="large"),
+                        "Dosage Strength": st.column_config.TextColumn("Dosage Strength", width="large"),
+                        "Dosage Form": st.column_config.TextColumn("Dosage Form", width="medium"),
+                        "Route": st.column_config.TextColumn("Route", width="small"),
+                        "Application": st.column_config.TextColumn("Application", width="medium"),
+                    },
+                )
                 preferred_rows = [
                     row for row in ob["rows"]
                     if str(row.get("RLD", "")).lower() == "yes" or str(row.get("RS", "")).lower() == "yes"
                 ] or ob["rows"]
                 product_options = [
-                    f"{idx + 1}. {row.get('Trade name')} | {row.get('Strength')} | {row.get('Dosage form / route')} | RLD {row.get('RLD')} | RS {row.get('RS')}"
+                    f"{idx + 1}. Trade Name: {row.get('Trade name')} | Dosage Strength: {row.get('Strength')} | {row.get('Dosage form / route')} | RLD {row.get('RLD')} | RS {row.get('RS')}"
                     for idx, row in enumerate(preferred_rows)
                 ]
-                selected_product = st.selectbox("Reference product / strength for BE plan", product_options)
+                selected_product = st.selectbox("Reference trade name / dosage strength for BE plan", product_options)
                 selected_product_row = preferred_rows[product_options.index(selected_product)]
                 p1, p2, p3 = st.columns(3)
-                p1.metric("Product name", selected_product_row.get("Trade name") or "N/A")
+                p1.metric("Trade Name / Product Name", selected_product_row.get("Trade name") or "N/A")
                 p2.metric("Company / applicant", selected_product_row.get("Applicant") or "N/A")
-                p3.metric("Strength", selected_product_row.get("Strength") or "N/A")
+                p3.metric("Dosage Strength", selected_product_row.get("Strength") or "N/A")
                 p4, p5, p6 = st.columns(3)
                 p4.metric("Dosage form / route", selected_product_row.get("Dosage form / route") or "N/A")
                 p5.metric("Application", selected_product_row.get("Application") or "N/A")
                 p6.metric("RLD / RS", f"{selected_product_row.get('RLD') or 'No'} / {selected_product_row.get('RS') or 'No'}")
                 st.caption(f"Reference detail source: {selected_product_row.get('Source') or 'FDA Orange Book'}")
-                with st.expander("Strength / dose strategy"):
-                    st.caption("Dose strength matters for BE. Use this section to document the reference strength selected from Orange Book and the proposed test strength.")
+                with st.expander("Dosage strength / dose strategy"):
+                    st.caption("Dosage Strength is the amount of active ingredient per dosage unit listed for the reference product. Dose is the administered amount in a BE study. Both matter for BE strategy.")
                     d1, d2 = st.columns(2)
                     with d1:
-                        st.text_input("Reference strength selected", value=selected_product_row.get("Strength", ""), key="be_reference_strength")
+                        st.text_input("Reference dosage strength selected", value=selected_product_row.get("Strength", ""), key="be_reference_strength")
                     with d2:
-                        st.text_input("Proposed test strength", value="", key="be_test_strength")
+                        st.text_input("Proposed test dosage strength", value="", key="be_test_strength")
                     st.selectbox(
-                        "Dose / strength strategy",
+                        "Dose / dosage-strength strategy",
                         ["Same strength direct BE", "Additional strength biowaiver", "Dose-proportional formulation bridge", "Strength mismatch requires strategy review"],
                         key="be_strength_strategy",
                     )
