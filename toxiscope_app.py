@@ -1455,9 +1455,9 @@ def render_landing_page():
                 <h1 class='landing-title'>ToxiGuard-Platform</h1>
             </div>
             <div class='landing-subtitle'>
-                A connected decision workflow for ontology-guided development strategy,
-                ICH M7/QSAR genotoxicity review, impurity and degradation evidence,
-                and FDA-oriented bioequivalence planning.
+                A drug-development decision architecture that turns product identity,
+                CMC risk, QSAR/ICH M7 evidence, impurity/degradation knowledge,
+                and bioequivalence planning into a development strategy plan.
             </div>
             <div class='ontology-stage'>
         """,

@@ -8,8 +8,11 @@ import os
 import urllib.parse
 import requests
 
-# Add the current directory to sys.path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add the current directory AND the root directory to sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.dirname(current_dir)
+sys.path.append(current_dir)
+sys.path.append(root_dir)
 
 try:
     from core.regulatory import (
@@ -1455,9 +1458,9 @@ def render_landing_page():
                 <h1 class='landing-title'>ToxiGuard-Platform</h1>
             </div>
             <div class='landing-subtitle'>
-                A connected decision workflow for ontology-guided development strategy,
-                ICH M7/QSAR genotoxicity review, impurity and degradation evidence,
-                and FDA-oriented bioequivalence planning.
+                A drug-development decision architecture that turns product identity,
+                CMC risk, QSAR/ICH M7 evidence, impurity/degradation knowledge,
+                and bioequivalence planning into a development strategy plan.
             </div>
             <div class='ontology-stage'>
         """,
