@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import base64
 import sys
 import os
 import urllib.parse
@@ -65,6 +66,11 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+hero_path = Path(__file__).parent / "hero.png"
+hero_bg_uri = ""
+if hero_path.exists():
+    hero_bg_uri = "data:image/jpeg;base64," + base64.b64encode(hero_path.read_bytes()).decode("ascii")
 
 # --- CSS: Premium Design System ---
 st.markdown("""
@@ -172,6 +178,67 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div {
 </style>
 """, unsafe_allow_html=True)
 
+if hero_bg_uri:
+    st.markdown(
+        f"""
+        <style>
+        .stApp::before {{
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(90deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 38%, rgba(15, 23, 42, 0.72) 100%),
+                url("{hero_bg_uri}");
+            background-size: cover;
+            background-position: center;
+            opacity: 0.52;
+            transform: scale(1.06);
+            animation: genotoxDrift 34s ease-in-out infinite alternate;
+        }}
+
+        .stApp::after {{
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 20% 18%, rgba(14, 165, 233, 0.16), transparent 34%),
+                radial-gradient(circle at 82% 72%, rgba(239, 68, 68, 0.10), transparent 32%);
+        }}
+
+        [data-testid="stAppViewContainer"] > .main,
+        section[data-testid="stSidebar"],
+        header[data-testid="stHeader"] {{
+            position: relative;
+            z-index: 1;
+        }}
+
+        header[data-testid="stHeader"] {{
+            background: transparent;
+        }}
+
+        @keyframes genotoxDrift {{
+            0% {{
+                transform: scale(1.06) translate3d(-1.5%, -1.2%, 0);
+                filter: saturate(1.03) brightness(0.92);
+            }}
+            50% {{
+                transform: scale(1.11) translate3d(1.2%, 0.8%, 0);
+                filter: saturate(1.14) brightness(1.02);
+            }}
+            100% {{
+                transform: scale(1.08) translate3d(-0.6%, 1.4%, 0);
+                filter: saturate(1.08) brightness(0.96);
+            }}
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
 # --- State Management ---
 if "smiles" not in st.session_state:
     st.session_state.smiles = ""
@@ -202,10 +269,6 @@ if "active_screen" not in st.session_state:
 with st.sidebar:
     st.markdown("<div class='accent-text'>Harness Active</div>", unsafe_allow_html=True)
     st.title("Project Scope")
-    st.markdown(
-        "<div class='sidebar-section'><div class='sidebar-section-title'>Subject</div><div class='sidebar-section-caption'>Who owns the project and which product is being assessed.</div></div>",
-        unsafe_allow_html=True,
-    )
     project_id = st.text_input("Project ID", value="TXS-2026-001")
     analyst = st.text_input("Expert Analyst", value="Lee Young-nam")
     reference_product = st.text_input(
@@ -718,6 +781,7 @@ def render_bioequivalence_module():
                 p4.metric("Dosage form / route", selected_product_row.get("Dosage form / route") or "N/A")
                 p5.metric("Application", selected_product_row.get("Application") or "N/A")
                 p6.metric("RLD / RS", f"{selected_product_row.get('RLD') or 'No'} / {selected_product_row.get('RS') or 'No'}")
+                st.caption(f"Reference detail source: {selected_product_row.get('Source') or 'FDA Orange Book'}")
                 with st.expander("Strength / dose strategy"):
                     st.caption("Dose strength matters for BE. Use this section to document the reference strength selected from Orange Book and the proposed test strength.")
                     d1, d2 = st.columns(2)
@@ -736,8 +800,11 @@ def render_bioequivalence_module():
                     st.info("For ANDA/generic strategy, confirm RLD/RS, strength, dosage form, and whether the proposed test strength is the same as the reference or requires additional-strength/biowaiver justification.")
             else:
                 drug_products = (package.get("drug_products") or {}).get("rows") or []
+                label_products = (package.get("label_products") or {}).get("rows") or []
                 if drug_products:
                     st.dataframe(pd.DataFrame(drug_products), use_container_width=True, hide_index=True)
+                elif label_products:
+                    st.dataframe(pd.DataFrame(label_products), use_container_width=True, hide_index=True)
                 else:
                     st.info(ob.get("error") or "No FDA product match returned. Try the active ingredient or proprietary name.")
             st.markdown(f"[Open FDA Orange Book search]({ob.get('source_url')})")
