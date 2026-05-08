@@ -103,21 +103,25 @@ st.markdown("""
 }
 
 .hero-title {
-    font-size: 3.9rem;
+    font-size: 5.15rem;
     font-weight: 900;
-    background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
+    background: linear-gradient(135deg, #ffffff 0%, #dbeafe 42%, #5eead4 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 0.5rem;
+    line-height: 0.94;
+    margin: 0.08rem 0 0.75rem;
+    letter-spacing: 0;
+    filter: drop-shadow(0 16px 34px rgba(14, 165, 233, 0.34));
 }
 
 .accent-text {
-    color: var(--accent);
+    color: #5eead4;
     font-family: 'JetBrains Mono', monospace;
     text-transform: uppercase;
     letter-spacing: 0.3em;
-    font-weight: 700;
-    font-size: 0.9rem;
+    font-weight: 900;
+    font-size: 1.02rem;
+    text-shadow: 0 0 22px rgba(94, 234, 212, 0.42);
 }
 
 .badge {
