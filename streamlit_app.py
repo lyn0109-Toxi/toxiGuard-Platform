@@ -517,29 +517,30 @@ a:hover {
 }
 
 .landing-shell {
-    min-height: 86vh;
+    min-height: calc(100vh - 2.2rem);
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: 1rem;
-    padding: 1.4rem 0 1.2rem;
+    justify-content: flex-start;
+    gap: 0.42rem;
+    padding: 0 0 0.35rem;
 }
 
 .landing-brand {
     display: flex;
     align-items: center;
-    gap: 1.45rem;
+    gap: 0.9rem;
 }
 
 .landing-brand .brand-mark {
-    width: 6rem;
-    height: 6rem;
-    flex-basis: 6rem;
+    width: 3.25rem;
+    height: 3.25rem;
+    flex-basis: 3.25rem;
+    border-radius: 12px;
 }
 
 .landing-title {
-    font-size: clamp(4.9rem, 8.6vw, 7.4rem);
-    line-height: 0.9;
+    font-size: clamp(2.9rem, 4.8vw, 4.7rem);
+    line-height: 0.92;
     margin: 0;
     font-weight: 900;
     background: linear-gradient(135deg, #ffffff 0%, #dbeafe 36%, #5eead4 76%, #fbbf24 100%);
@@ -550,9 +551,9 @@ a:hover {
 
 .landing-subtitle {
     color: #dbeafe;
-    font-size: 1.2rem;
-    max-width: 980px;
-    line-height: 1.45;
+    font-size: 0.93rem;
+    max-width: 1180px;
+    line-height: 1.26;
 }
 
 .ontology-stage {
@@ -564,14 +565,16 @@ a:hover {
         linear-gradient(135deg, rgba(2, 6, 23, 0.82), rgba(8, 47, 73, 0.58)),
         rgba(15, 23, 42, 0.62);
     box-shadow: 0 24px 70px rgba(2, 6, 23, 0.36), 0 0 0 1px rgba(251, 191, 36, 0.08) inset;
-    padding: 0.85rem;
+    padding: 0.34rem;
+    max-height: 68vh;
 }
 
 .ontology-stage img {
     width: 100%;
-    height: auto;
+    height: 100%;
     display: block;
     border-radius: 12px;
+    object-fit: contain;
 }
 
 .ontology-animated-map {
@@ -579,18 +582,22 @@ a:hover {
     overflow: hidden;
     border-radius: 12px;
     background: #f8fbfe;
+    height: min(67vh, 52vw);
+    max-height: 67vh;
 }
 
 .ontology-animated-map img {
     width: 100%;
-    height: auto;
+    height: 100%;
     display: block;
+    object-fit: contain;
+    transform: none;
 }
 
 .electron {
     position: absolute;
-    width: 0.82rem;
-    height: 0.82rem;
+    width: 0.68rem;
+    height: 0.68rem;
     border-radius: 999px;
     pointer-events: none;
     z-index: 2;
@@ -628,46 +635,77 @@ a:hover {
 .electron.e5 { animation-name: electronCmc; animation-delay: 2.4s; }
 .electron.e6 { animation-name: electronBe; animation-delay: 3s; }
 
+.node-glow {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+    border-radius: 14px;
+    opacity: 0;
+    background: rgba(94, 234, 212, 0.06);
+    box-shadow:
+        0 0 0 2px rgba(94, 234, 212, 0.34),
+        0 0 28px rgba(94, 234, 212, 0.46),
+        0 0 54px rgba(251, 191, 36, 0.16);
+    animation-duration: 5.8s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+.node-glow.why { left: 12.2%; top: 15.9%; width: 11.2%; height: 5.4%; animation-name: glowNode; animation-delay: 0s; }
+.node-glow.product { left: 13.6%; top: 42.5%; width: 12.7%; height: 5.4%; animation-name: glowNode; animation-delay: 0.7s; }
+.node-glow.safety { left: 34.2%; top: 37.4%; width: 11.8%; height: 5.3%; animation-name: glowNode; animation-delay: 1.2s; }
+.node-glow.impurity { left: 63.2%; top: 37.4%; width: 12%; height: 5.3%; animation-name: glowNode; animation-delay: 1.2s; }
+.node-glow.regulatory { left: 83.1%; top: 51.2%; width: 12.6%; height: 5.3%; animation-name: glowNode; animation-delay: 1.8s; }
+.node-glow.cmc { left: 19.2%; top: 67.3%; width: 12.4%; height: 5.3%; animation-name: glowNode; animation-delay: 2.4s; }
+.node-glow.be { left: 66.4%; top: 67.4%; width: 12%; height: 5.3%; animation-name: glowNode; animation-delay: 3s; }
+.node-glow.output { left: 48.6%; top: 80.2%; width: 11.6%; height: 5.2%; animation-name: glowNode; animation-delay: 3.1s; }
+
+@keyframes glowNode {
+    0%, 24%, 100% { opacity: 0; transform: scale(0.99); }
+    36%, 58% { opacity: 1; transform: scale(1.012); }
+    72% { opacity: 0; transform: scale(1); }
+}
+
 @keyframes electronWhy {
-    0% { left: 16%; top: 20%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 24.8%; top: 18.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
     12% { opacity: 1; }
-    50% { left: 51%; top: 20%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    50% { left: 52%; top: 18.3%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
     88% { opacity: 1; }
-    100% { left: 84%; top: 20%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    100% { left: 80%; top: 18.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
 }
 
 @keyframes electronProduct {
-    0% { left: 15%; top: 49%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 12.6%; top: 40.8%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
     16% { opacity: 1; }
-    58% { left: 33%; top: 53%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { left: 50%; top: 55%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    58% { left: 27%; top: 47.4%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { left: 45.5%; top: 55.7%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
 }
 
 @keyframes electronSafety {
-    0% { left: 37%; top: 43%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 38%; top: 36.1%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
     18% { opacity: 1; }
-    62% { left: 51%; top: 55%; opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-    100% { left: 63%; top: 43%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    52% { left: 50.7%; top: 50.6%; opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+    100% { left: 63.8%; top: 36.2%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
 }
 
 @keyframes electronRegulatory {
-    0% { left: 51%; top: 55%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 56%; top: 55.3%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
     15% { opacity: 1; }
-    70% { left: 77%; top: 55%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { left: 88%; top: 48%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    70% { left: 82.4%; top: 55.3%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { left: 91%; top: 49%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
 }
 
 @keyframes electronCmc {
-    0% { left: 27%; top: 72%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 25%; top: 70%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
     18% { opacity: 1; }
-    60% { left: 45%; top: 81%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { left: 52%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    60% { left: 44%; top: 78%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { left: 51%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
 }
 
 @keyframes electronBe {
-    0% { left: 74%; top: 72%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    0% { left: 72%; top: 70%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
     18% { opacity: 1; }
-    60% { left: 61%; top: 81%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    60% { left: 61%; top: 78%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
     100% { left: 52%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
 }
 
@@ -780,9 +818,10 @@ if not st.session_state.entered_platform:
             display: none !important;
         }
         .block-container {
-            max-width: 1320px !important;
-            padding-left: 4rem !important;
-            padding-right: 4rem !important;
+            max-width: 1480px !important;
+            padding-top: 1.1rem !important;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
         }
         </style>
         """,
@@ -1595,6 +1634,14 @@ def render_landing_page():
             f"""
             <div class='ontology-animated-map'>
                 <img src='{ontology_map_uri}' alt='ToxiGuard-Platform ontology map' />
+                <span class='node-glow why'></span>
+                <span class='node-glow product'></span>
+                <span class='node-glow safety'></span>
+                <span class='node-glow impurity'></span>
+                <span class='node-glow regulatory'></span>
+                <span class='node-glow cmc'></span>
+                <span class='node-glow be'></span>
+                <span class='node-glow output'></span>
                 <span class='electron gold e1'></span>
                 <span class='electron e2'></span>
                 <span class='electron red e3'></span>
