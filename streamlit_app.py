@@ -26,13 +26,21 @@ except ImportError as e:
     st.error(f"Module Import Error: {e}")
     st.stop()
 
-# Try importing RDKit
+# Try importing RDKit. Keep core chemistry separate from drawing because
+# Streamlit Cloud can have drawing-backend differences.
 try:
     from rdkit import Chem
-    from rdkit.Chem import Descriptors, Draw, Lipinski, rdMolDescriptors
+    from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors
     RDKIT_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    RDKIT_IMPORT_ERROR = str(e)
     RDKIT_AVAILABLE = False
+
+try:
+    from rdkit.Chem.Draw import rdMolDraw2D
+    RDKIT_DRAW_AVAILABLE = True
+except ImportError:
+    RDKIT_DRAW_AVAILABLE = False
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -164,6 +172,37 @@ def build_structure_profile(smiles_value):
         "heavy_atoms": mol.GetNumHeavyAtoms(),
     }
 
+def render_molecule_svg(mol, highlight_atoms=None, width=620, height=420):
+    if not RDKIT_DRAW_AVAILABLE or mol is None:
+        return None
+    drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
+    options = drawer.drawOptions()
+    options.clearBackground = False
+    options.setBackgroundColour((0.06, 0.09, 0.16))
+    options.legendFontSize = 16
+    rdMolDraw2D.PrepareAndDrawMolecule(
+        drawer,
+        mol,
+        highlightAtoms=highlight_atoms or [],
+    )
+    drawer.FinishDrawing()
+    return drawer.GetDrawingText().replace("svg:", "")
+
+def show_molecule(mol, highlight_atoms=None, width=620, height=420):
+    svg = render_molecule_svg(mol, highlight_atoms=highlight_atoms, width=width, height=height)
+    if not svg:
+        st.warning("Structure drawing backend is not available in this deployment.")
+        return
+    st.components.v1.html(
+        f"""
+        <div style="width:100%; display:flex; justify-content:center;">
+            {svg}
+        </div>
+        """,
+        height=height + 24,
+        scrolling=False,
+    )
+
 def collect_alert_atoms(result):
     atoms = set()
     for alert in result.get("expert_alerts", []) + result.get("statistical_alerts", []):
@@ -242,13 +281,10 @@ if st.session_state.results:
     map_col1, map_col2 = st.columns([1.05, 1.25])
     with map_col1:
         if profile:
-            st.image(
-                Draw.MolToImage(profile["mol"], size=(620, 420), highlightAtoms=highlighted_atoms),
-                caption="Highlighted atoms indicate mapped toxicophore / QSAR alert regions",
-                use_container_width=True,
-            )
+            show_molecule(profile["mol"], highlighted_atoms, width=620, height=420)
+            st.caption("Highlighted atoms indicate mapped toxicophore / QSAR alert regions.")
         else:
-            st.warning("Structure rendering is not available for the submitted SMILES.")
+            st.warning("Structure parsing is not available for the submitted SMILES.")
     with map_col2:
         st.markdown("#### Toxicity-Driving Structural Features")
         if alert_list:
@@ -288,11 +324,8 @@ if st.session_state.results:
         if profile:
             s_col1, s_col2 = st.columns([1, 1.25])
             with s_col1:
-                st.image(
-                    Draw.MolToImage(profile["mol"], size=(520, 360), highlightAtoms=highlighted_atoms),
-                    caption="2D structure with QSAR alert atoms highlighted",
-                    use_container_width=True,
-                )
+                show_molecule(profile["mol"], highlighted_atoms, width=520, height=360)
+                st.caption("2D structure with QSAR alert atoms highlighted.")
             with s_col2:
                 st.markdown("#### Identity & Physicochemical Profile")
                 st.code(profile["canonical_smiles"], language="text")
