@@ -8,7 +8,7 @@ from core.regulatory import (
     assess_genotoxicity,
     predict_degradation_products,
 )
-from core.bioequivalence import DEFAULT_DISSOLUTION_PROFILE, calculate_f2, sampling_times_to_profile
+from core.bioequivalence import DEFAULT_DISSOLUTION_PROFILE, calculate_f2, sampling_times_to_profile, be_strategy_by_dosage_form
 from core.ontology import build_strategy_snapshot, build_submission_workflow
 
 def test_sync():
@@ -109,6 +109,15 @@ def test_sync():
         print("✅ FDA sampling times converted to dissolution input table.")
     else:
         print(f"❌ Sampling time conversion failed: {list(profile['Time (min)'])}")
+
+    # 10. Test dosage-form-specific BE strategy
+    print("--- Resolving dosage-form-specific BE strategy ---")
+    ir_strategy = be_strategy_by_dosage_form("Immediate-release tablet/capsule")
+    er_strategy = be_strategy_by_dosage_form("Modified-release oral solid")
+    if ir_strategy["Release type"] == "Immediate release" and "extended" in er_strategy["Release type"].lower():
+        print("✅ IR and MR/ER BE strategy branches resolved.")
+    else:
+        print("❌ Dosage-form strategy branch failed.")
 
 if __name__ == "__main__":
     test_sync()

@@ -30,6 +30,7 @@ try:
         FDA_BE_GUIDANCE_SOURCES,
         lookup_reference_product_package,
         sampling_times_to_profile,
+        be_strategy_by_dosage_form,
     )
     from core.ontology import (
         FDA_GUIDANCE_MAP,
@@ -734,6 +735,19 @@ def render_bioequivalence_module():
     st.markdown("<div class='accent-text'>Bioequivalence Strategy</div>", unsafe_allow_html=True)
     st.markdown("## Comparative Dissolution and Bioequivalence")
     st.caption("Search the FDA reference product and dissolution method first, then enter laboratory reference/test dissolution values for f2 bootstrap analysis.")
+
+    dosage_strategy = be_strategy_by_dosage_form(dosage_form)
+    st.markdown("#### Dosage Form Release-Type Strategy")
+    ds1, ds2, ds3 = st.columns(3)
+    ds1.metric("Selected dosage form", dosage_form)
+    ds2.metric("BE release type", dosage_strategy["Release type"])
+    ds3.metric("Submission path", submission_path)
+    st.info(f"**Primary BE focus**: {dosage_strategy['Primary BE focus']}")
+    with st.expander("Dosage-form-specific BE requirements"):
+        st.write(f"**Recommended study design**: {dosage_strategy['Recommended study design']}")
+        st.write(f"**Dissolution role**: {dosage_strategy['Dissolution role']}")
+        st.write(f"**Key data needs**: {dosage_strategy['Key data needs']}")
+        st.warning(dosage_strategy["Risk note"])
 
     st.markdown("#### FDA Reference Product and Method Lookup")
     lookup_col1, lookup_col2 = st.columns([1.2, 0.8])

@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+import urllib.parse
 from dataclasses import dataclass
 from html.parser import HTMLParser
 
@@ -59,6 +60,8 @@ ORANGE_BOOK_ZIP_URL = "https://www.fda.gov/media/76860/download?attachment="
 ORANGE_BOOK_SEARCH_URL = "https://www.accessdata.fda.gov/scripts/cder/ob/index.cfm"
 FDA_DISSOLUTION_ALL_URL = "https://www.accessdata.fda.gov/scripts/cder/dissolution/dsp_getallData.cfm"
 FDA_DISSOLUTION_SEARCH_URL = "https://www.accessdata.fda.gov/scripts/cder/dissolution/index.cfm"
+OPENFDA_DRUGSFDA_URL = "https://api.fda.gov/drug/drugsfda.json"
+OPENFDA_LABEL_URL = "https://api.fda.gov/drug/label.json"
 
 
 class _TableParser(HTMLParser):
@@ -136,7 +139,152 @@ def search_orange_book_reference(query, limit=12):
             )
         return {"rows": rows, "error": "", "source_url": ORANGE_BOOK_SEARCH_URL}
     except Exception as exc:
-        return {"rows": [], "error": f"Orange Book lookup unavailable: {exc}", "source_url": ORANGE_BOOK_SEARCH_URL}
+        return {"rows": [], "error": _friendly_fda_error(exc, "Orange Book"), "source_url": ORANGE_BOOK_SEARCH_URL}
+
+
+
+def _first_list_value(value):
+    if isinstance(value, list):
+        return value[0] if value else ""
+    return value or ""
+
+
+def _join_list(value):
+    if isinstance(value, list):
+        return "; ".join([str(item) for item in value if item])
+    return value or ""
+
+
+def _friendly_fda_error(exc, source_name):
+    message = str(exc)
+    if "apology_objects" in message or "abuse-detection" in message:
+        return f"{source_name} direct lookup was blocked by FDA access protection. openFDA fallback will be used when available."
+    return f"{source_name} lookup unavailable: {exc}"
+
+
+def _openfda_search_terms(query):
+    escaped = str(query).replace('"', '')
+    return [
+        f'openfda.generic_name:"{escaped}"',
+        f'openfda.brand_name:"{escaped}"',
+        f'products.active_ingredients.name:"{escaped}"',
+        escaped,
+    ]
+
+
+def search_openfda_drug_products(query, limit=12):
+    if not query or len(query.strip()) < 3:
+        return {"rows": [], "error": "Enter at least three characters.", "source_url": "https://open.fda.gov/apis/drug/drugsfda/"}
+    errors = []
+    for term in _openfda_search_terms(query.strip()):
+        try:
+            params = {"search": term, "limit": 100}
+            response = requests.get(OPENFDA_DRUGSFDA_URL, params=params, timeout=20)
+            if response.status_code == 404:
+                continue
+            response.raise_for_status()
+            data = response.json()
+            rows = []
+            for app in data.get("results", []):
+                openfda = app.get("openfda") or {}
+                sponsor = app.get("sponsor_name") or _first_list_value(openfda.get("manufacturer_name"))
+                application = app.get("application_number", "")
+                for product in app.get("products", []) or []:
+                    active_ingredients = product.get("active_ingredients") or []
+                    strengths = "; ".join(
+                        [f"{item.get('name', '')} {item.get('strength', '')}".strip() for item in active_ingredients]
+                    )
+                    rows.append(
+                        {
+                            "Ingredient": "; ".join([item.get("name", "") for item in active_ingredients]) or _first_list_value(openfda.get("generic_name")),
+                            "Trade name": product.get("brand_name") or _first_list_value(openfda.get("brand_name")),
+                            "Applicant": sponsor,
+                            "Strength": strengths,
+                            "Dosage form / route": "; ".join([product.get("dosage_form", ""), product.get("route", "")]).strip("; "),
+                            "Application": application,
+                            "Product no.": product.get("product_number", ""),
+                            "TE code": product.get("te_code", ""),
+                            "RLD": product.get("reference_drug", ""),
+                            "RS": product.get("reference_standard", ""),
+                            "Approval date": product.get("approval_date", ""),
+                            "Marketing status": product.get("marketing_status", ""),
+                            "Source": "openFDA Drugs@FDA",
+                        }
+                    )
+            if rows:
+                query_norm = query.strip().upper()
+                def priority(row):
+                    application = str(row.get("Application", "")).upper()
+                    rld = str(row.get("RLD", "")).lower()
+                    rs = str(row.get("RS", "")).lower()
+                    te = str(row.get("TE code", "")).strip()
+                    ingredient = str(row.get("Ingredient", "")).upper()
+                    is_exact_single = ingredient == query_norm
+                    is_single = ";" not in ingredient and "/" not in ingredient
+                    return (
+                        1 if is_exact_single else 0,
+                        1 if is_single else 0,
+                        1 if application.startswith("NDA") else 0,
+                        1 if rld in {"yes", "true", "1"} else 0,
+                        1 if rs in {"yes", "true", "1"} else 0,
+                        0 if te else 1,
+                    )
+                rows = sorted(rows, key=priority, reverse=True)
+                return {"rows": rows[:limit], "error": "", "source_url": "https://open.fda.gov/apis/drug/drugsfda/"}
+        except Exception as exc:
+            errors.append(str(exc))
+    return {
+        "rows": [],
+        "error": "openFDA Drugs@FDA lookup unavailable" + (f": {errors[-1]}" if errors else "."),
+        "source_url": "https://open.fda.gov/apis/drug/drugsfda/",
+    }
+
+
+def search_openfda_label_products(query, limit=12):
+    if not query or len(query.strip()) < 3:
+        return {"rows": [], "error": "Enter at least three characters.", "source_url": "https://open.fda.gov/apis/drug/label/"}
+    rows = []
+    errors = []
+    for term in _openfda_search_terms(query.strip()):
+        try:
+            response = requests.get(
+                OPENFDA_LABEL_URL,
+                params={"search": term, "limit": min(max(limit, 1), 100)},
+                timeout=20,
+            )
+            if response.status_code == 404:
+                continue
+            response.raise_for_status()
+            for item in response.json().get("results", []):
+                openfda = item.get("openfda") or {}
+                rows.append(
+                    {
+                        "Ingredient": _join_list(openfda.get("substance_name")) or _join_list(openfda.get("generic_name")),
+                        "Trade name": _join_list(openfda.get("brand_name")),
+                        "Applicant": _join_list(openfda.get("manufacturer_name")),
+                        "Strength": _join_list(item.get("active_ingredient")),
+                        "Dosage form / route": "; ".join(
+                            [value for value in [_join_list(openfda.get("dosage_form")), _join_list(openfda.get("route"))] if value]
+                        ),
+                        "Application": _join_list(openfda.get("application_number")),
+                        "Product no.": _join_list(openfda.get("product_ndc")),
+                        "TE code": "",
+                        "RLD": "Not specified",
+                        "RS": "Not specified",
+                        "Approval date": "",
+                        "Marketing status": _join_list(openfda.get("product_type")),
+                        "Source": "openFDA Drug Label",
+                    }
+                )
+            if rows:
+                return {"rows": rows[:limit], "error": "", "source_url": "https://open.fda.gov/apis/drug/label/"}
+        except Exception as exc:
+            errors.append(str(exc))
+    return {
+        "rows": [],
+        "error": "openFDA Drug Label lookup unavailable" + (f": {errors[-1]}" if errors else "."),
+        "source_url": "https://open.fda.gov/apis/drug/label/",
+    }
 
 
 def _dissolution_rows_from_html(html):
@@ -170,7 +318,7 @@ def search_fda_dissolution_methods(query, limit=12):
         matches = [row for row in rows if _contains_query(row.get("Drug name"), query)]
         return {"rows": matches[:limit], "error": "", "source_url": FDA_DISSOLUTION_SEARCH_URL}
     except Exception as exc:
-        return {"rows": [], "error": f"FDA Dissolution Methods lookup unavailable: {exc}", "source_url": FDA_DISSOLUTION_SEARCH_URL}
+        return {"rows": [], "error": _friendly_fda_error(exc, "FDA Dissolution Methods"), "source_url": FDA_DISSOLUTION_SEARCH_URL}
 
 
 def sampling_times_to_profile(method_row, default_n=12):
@@ -199,16 +347,76 @@ def sampling_times_to_profile(method_row, default_n=12):
 
 def lookup_reference_product_package(query):
     orange_book = search_orange_book_reference(query)
+    drug_products = search_openfda_drug_products(query)
+    label_products = search_openfda_label_products(query) if not drug_products.get("rows") else {"rows": [], "error": "", "source_url": "https://open.fda.gov/apis/drug/label/"}
+    if not orange_book.get("rows") and drug_products.get("rows"):
+        orange_book = {**orange_book, "rows": drug_products["rows"], "error": ""}
+    if not orange_book.get("rows") and label_products.get("rows"):
+        orange_book = {**orange_book, "rows": label_products["rows"], "error": ""}
     dissolution = search_fda_dissolution_methods(query)
     return {
         "query": query,
         "orange_book": orange_book,
+        "drug_products": drug_products,
+        "label_products": label_products,
         "dissolution": dissolution,
         "notes": [
             "Orange Book identifies approved drug products, RLD, RS, TE code, strength, and application information.",
+            "If Orange Book download is unavailable, openFDA Drugs@FDA is used to display product name, sponsor/company, strength, dosage form, route, and application details.",
+            "If Drugs@FDA does not return a match, openFDA Drug Label is used as a broader fallback for marketed product name, manufacturer, route, and active ingredient details.",
             "FDA Dissolution Methods Database provides recommended method conditions and sampling times.",
             "Actual reference/test dissolution percentages are generally not published as a structured FDA dataset; enter laboratory or internal profile data for f2 calculation.",
         ],
+    }
+
+
+def classify_be_dosage_form(dosage_form):
+    label = (dosage_form or "").lower()
+    if any(term in label for term in ["modified", "sustained", "extended", "controlled", "delayed"]):
+        return "Modified / sustained / extended release"
+    if "immediate" in label or "tablet" in label or "capsule" in label:
+        return "Immediate release"
+    if any(term in label for term in ["solution", "injectable"]):
+        return "Solution / non-oral-solid"
+    return "Other / requires product-specific review"
+
+
+def be_strategy_by_dosage_form(dosage_form):
+    release_type = classify_be_dosage_form(dosage_form)
+    if release_type == "Immediate release":
+        return {
+            "Release type": release_type,
+            "Primary BE focus": "Single-dose fasting BE; fed BE when product-specific guidance or food-effect concern applies.",
+            "Dissolution role": "Comparative dissolution and f2 can support sameness/biowaiver strategy when method and variability are acceptable.",
+            "Recommended study design": "Usually randomized single-dose 2-way crossover; analyte and fed/fasted design should follow product-specific guidance.",
+            "Key data needs": "RLD/RS, same strength or strength bridge, product-specific dissolution method, pH media profile, f2, assay method, PK endpoint plan.",
+            "Risk note": "IR products may use f2 as a supportive dissolution similarity tool, but f2 alone does not replace required in vivo BE unless a waiver pathway is justified.",
+        }
+    if release_type == "Modified / sustained / extended release":
+        return {
+            "Release type": release_type,
+            "Primary BE focus": "Both fasting and fed BE are commonly important; dose dumping and alcohol/food effect risks require explicit review.",
+            "Dissolution role": "Multi-time-point dissolution profile is critical, but f2 is supportive rather than sufficient for release-mechanism equivalence.",
+            "Recommended study design": "Product-specific design may include fasting, fed, multiple-dose steady-state, partial AUC, or replicate design for high variability.",
+            "Key data needs": "Release mechanism, matrix/coating comparison, dose dumping risk, alcohol-induced dose dumping screen, multiple strengths, partial AUC, fed/fasted PK plan.",
+            "Risk note": "MR/ER products have higher BE risk. Confirm FDA product-specific guidance before relying on f2 or biowaiver arguments.",
+        }
+    if release_type == "Solution / non-oral-solid":
+        return {
+            "Release type": release_type,
+            "Primary BE focus": "Dosage-form-specific waiver or clinical/PK bridge depends on route, formulation sameness, and product-specific guidance.",
+            "Dissolution role": "Dissolution f2 may be not applicable or secondary depending on route and formulation.",
+            "Recommended study design": "Review route-specific FDA guidance and formulation sameness before selecting BE design.",
+            "Key data needs": "Route, excipients, concentration, osmolality/pH where relevant, formulation sameness, product-specific FDA guidance.",
+            "Risk note": "Do not apply oral solid f2 logic directly to non-oral-solid products.",
+        }
+    return {
+        "Release type": release_type,
+        "Primary BE focus": "Requires product-specific review.",
+        "Dissolution role": "Do not assume f2 applies without dosage-form confirmation.",
+        "Recommended study design": "Check FDA product-specific guidance and dosage-form-specific BE recommendations.",
+        "Key data needs": "RLD/RS, dosage form, route, strength, formulation design, product-specific guidance.",
+        "Risk note": "Insufficient dosage-form information for default BE strategy.",
     }
 
 
