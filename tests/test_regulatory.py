@@ -8,6 +8,8 @@ from core.regulatory import (
     assess_genotoxicity,
     predict_degradation_products,
 )
+from core.bioequivalence import DEFAULT_DISSOLUTION_PROFILE, calculate_f2
+from core.ontology import build_strategy_snapshot, build_submission_workflow
 
 def test_sync():
     print("🧪 Testing ToxiGuard-AI Sync...")
@@ -81,6 +83,23 @@ def test_sync():
         print("✅ Harness worker-report.v1 generated.")
     else:
         print("❌ Harness worker-report.v1 missing or insufficient.")
+
+    # 7. Test Bioequivalence f2 calculation
+    print("--- Calculating Bioequivalence f2 ---")
+    be_result = calculate_f2(DEFAULT_DISSOLUTION_PROFILE, bootstrap_runs=200)
+    if be_result.f2 >= 50:
+        print(f"✅ f2 similarity calculated: {be_result.f2} ({'R' if be_result.r_backend_used else 'Python fallback'})")
+    else:
+        print(f"❌ Unexpected f2 result: {be_result.f2}")
+
+    # 8. Test platform-level strategy ontology
+    print("--- Building ToxiGuard-Platform strategy snapshot ---")
+    snapshot = build_strategy_snapshot(package.get("assessment"), package.get("degradation_products"), be_result)
+    workflow = build_submission_workflow(package.get("assessment"), package.get("degradation_products"), be_result)
+    if snapshot.get("overall_risk") and len(workflow) >= 5:
+        print(f"✅ Strategy ontology connected: overall risk = {snapshot['overall_risk']}")
+    else:
+        print("❌ Strategy ontology failed.")
 
 if __name__ == "__main__":
     test_sync()

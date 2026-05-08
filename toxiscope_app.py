@@ -22,6 +22,18 @@ try:
         get_experimental_detail,
         match_known_impurities,
     )
+    from core.bioequivalence import (
+        DEFAULT_DISSOLUTION_PROFILE,
+        calculate_f2,
+        dissolution_profile_summary,
+        FDA_BE_GUIDANCE_SOURCES,
+    )
+    from core.ontology import (
+        FDA_GUIDANCE_MAP,
+        ROLE_GUIDANCE,
+        build_strategy_snapshot,
+        build_submission_workflow,
+    )
 except ImportError as e:
     st.error(f"Module Import Error: {e}")
     st.stop()
@@ -46,7 +58,7 @@ except ImportError as e:
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="ToxiScope AI | Regulatory Intelligence",
+    page_title="ToxiGuard-Platform | Regulatory Strategy",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -127,6 +139,8 @@ if "known_impurities" not in st.session_state:
     st.session_state.known_impurities = []
 if "evidence_package" not in st.session_state:
     st.session_state.evidence_package = None
+if "be_profile" not in st.session_state:
+    st.session_state.be_profile = DEFAULT_DISSOLUTION_PROFILE.copy()
 
 # --- UI Layout ---
 with st.sidebar:
@@ -134,12 +148,30 @@ with st.sidebar:
     st.title("Project Scope")
     project_id = st.text_input("Project ID", value="TXS-2026-001")
     analyst = st.text_input("Expert Analyst", value="Lee Young-nam")
+    development_stage = st.selectbox(
+        "Development Stage",
+        ["Preformulation", "Preclinical", "IND-enabling", "Phase 1", "Phase 2/3", "ANDA / Generic", "NDA / 505(b)(2)", "Post-approval change"],
+        index=5,
+    )
+    submission_path = st.selectbox(
+        "Submission Pathway",
+        ["ANDA", "NDA", "505(b)(2)", "IND", "DMF", "IMPD / CTA", "Post-approval variation"],
+        index=0,
+    )
+    user_role = st.selectbox("Platform View", list(ROLE_GUIDANCE.keys()), index=0)
+    dosage_form = st.selectbox(
+        "Dosage Form",
+        ["Immediate-release tablet/capsule", "Modified-release oral solid", "Oral solution", "Injectable", "Semisolid", "Other"],
+        index=0,
+    )
+    reference_product = st.text_input("Reference Product / RLD", value="")
     daily_dose_mg = st.number_input("Daily Dose (mg/day)", min_value=0.001, value=10.0, step=1.0)
     st.markdown("---")
     st.markdown("### Compliance Rules")
     st.checkbox("ICH M7(R2) Guidelines", value=True, disabled=True)
     st.checkbox("ASHBY Structural Alerts", value=True, disabled=True)
     st.checkbox("Proactive Degradation", value=True)
+    st.checkbox("Bioequivalence / f2 Strategy", value=True)
 
 def run_assessment(compound_name, smiles_value):
     package = build_harnessed_evidence_package(
@@ -408,8 +440,154 @@ def evidence_alert_rows(evidence_objects):
             })
     return rows
 
-st.markdown("<div class='accent-text'>Regulatory Intelligence Platform</div>", unsafe_allow_html=True)
-st.markdown("<h1 class='hero-title'>ToxiScope AI</h1>", unsafe_allow_html=True)
+def risk_badge_html(label, value):
+    color = {
+        "High": "#ef4444",
+        "Medium": "#f59e0b",
+        "Low": "#10b981",
+        "Not started": "#64748b",
+        "Review needed": "#f59e0b",
+    }.get(value, "#64748b")
+    return f"""
+    <div class='glass-card' style='padding:1.2rem; min-height:142px;'>
+        <div style='color:#94a3b8; font-size:0.85rem; font-weight:700;'>{label}</div>
+        <div style='font-size:2rem; font-weight:900; color:{color}; margin-top:0.4rem;'>{value}</div>
+    </div>
+    """
+
+def render_strategy_dashboard():
+    snapshot = build_strategy_snapshot(
+        results=st.session_state.results,
+        degradants=st.session_state.degradants,
+        be_result=st.session_state.get("be_result"),
+        role=user_role,
+    )
+    workflow = build_submission_workflow(
+        results=st.session_state.results,
+        degradants=st.session_state.degradants,
+        be_result=st.session_state.get("be_result"),
+    )
+
+    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+    st.markdown("### Strategy Dashboard")
+    meta_cols = st.columns(5)
+    meta_cols[0].metric("Stage", development_stage)
+    meta_cols[1].metric("Pathway", submission_path)
+    meta_cols[2].metric("Dosage form", dosage_form)
+    meta_cols[3].metric("Role view", user_role)
+    meta_cols[4].metric("RLD / Reference", reference_product or "TBD")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    r1, r2, r3, r4 = st.columns(4)
+    r1.markdown(risk_badge_html("Overall Regulatory Risk", snapshot["overall_risk"]), unsafe_allow_html=True)
+    r2.markdown(risk_badge_html("QSAR / Genotoxicity", snapshot["toxicology_risk"]), unsafe_allow_html=True)
+    r3.markdown(risk_badge_html("Impurity / Degradation", snapshot["degradation_risk"]), unsafe_allow_html=True)
+    r4.markdown(risk_badge_html("Bioequivalence", snapshot["bioequivalence_risk"]), unsafe_allow_html=True)
+
+    st.info(f"**{user_role} focus**: {snapshot['role_focus']}  \n\n**Recommended next action**: {snapshot['role_next_action']}")
+
+    dash_tab1, dash_tab2, dash_tab3 = st.tabs(["Workflow", "Module Actions", "Guidance Map"])
+    with dash_tab1:
+        st.dataframe(pd.DataFrame(workflow), use_container_width=True, hide_index=True)
+    with dash_tab2:
+        st.dataframe(pd.DataFrame(snapshot["module_actions"]), use_container_width=True, hide_index=True)
+    with dash_tab3:
+        st.dataframe(pd.DataFrame(FDA_GUIDANCE_MAP), use_container_width=True, hide_index=True)
+
+def render_bioequivalence_module():
+    st.markdown("---")
+    st.markdown("<div class='accent-text'>Bioequivalence Strategy</div>", unsafe_allow_html=True)
+    st.markdown("## 의약품동등성 용출 비교")
+    st.caption("FDA BE guidance 맥락에서 Reference와 Test의 시간별 평균 용출률, 표준편차, n수를 입력하고 bootstrap 기반 f2 similarity factor를 계산합니다.")
+
+    be_col1, be_col2 = st.columns([1.15, 0.85])
+    with be_col1:
+        edited_profile = st.data_editor(
+            st.session_state.be_profile,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Time (min)": st.column_config.NumberColumn("Time (min)", min_value=0.0, step=5.0),
+                "Reference Mean (%)": st.column_config.NumberColumn("Reference Mean (%)", min_value=0.0, max_value=150.0, step=1.0),
+                "Reference SD": st.column_config.NumberColumn("Reference SD", min_value=0.0, step=0.1),
+                "Reference n": st.column_config.NumberColumn("Reference n", min_value=1, step=1),
+                "Test Mean (%)": st.column_config.NumberColumn("Test Mean (%)", min_value=0.0, max_value=150.0, step=1.0),
+                "Test SD": st.column_config.NumberColumn("Test SD", min_value=0.0, step=0.1),
+                "Test n": st.column_config.NumberColumn("Test n", min_value=1, step=1),
+            },
+            key="be_profile_editor",
+        )
+        st.session_state.be_profile = edited_profile
+
+        chart_df = dissolution_profile_summary(edited_profile)
+        if not chart_df.empty:
+            plot_df = chart_df.set_index("Time (min)")[["Reference Mean (%)", "Test Mean (%)"]]
+            st.line_chart(plot_df, use_container_width=True)
+
+    with be_col2:
+        st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
+        st.markdown("#### Decision Snapshot")
+        bootstrap_runs = st.slider("Bootstrap iterations", min_value=500, max_value=10000, value=2000, step=500)
+        if st.button("Calculate f2 with Bootstrap", use_container_width=True):
+            try:
+                be_result = calculate_f2(edited_profile, bootstrap_runs=bootstrap_runs)
+                st.session_state.be_result = be_result
+            except Exception as exc:
+                st.session_state.be_result = None
+                st.error(f"f2 calculation failed: {exc}")
+
+        be_result = st.session_state.get("be_result")
+        if be_result:
+            st.metric("f2 Similarity Factor", be_result.f2)
+            st.metric("Bootstrap 95% CI", f"{be_result.ci_low} - {be_result.ci_high}")
+            st.metric("Bootstrap P(f2 ≥ 50)", f"{be_result.probability_f2_ge_50}%")
+            st.write(f"**FDA strategy decision**: {be_result.fda_decision}")
+            st.write(f"**FDA submission risk**: {be_result.fda_risk}")
+            if be_result.f2 >= 50:
+                st.success("Reference와 Test의 평균 용출패턴은 FDA dissolution profile comparison의 f2 기준상 유사성 근거로 사용할 수 있습니다.")
+            else:
+                st.error("f2가 50 미만입니다. FDA 제출전략상 비교용출만으로 유사성 주장을 하기 어렵고, 처방/공정/입도/결정형/용출법 또는 in vivo BE 전략 검토가 필요합니다.")
+            st.info(be_result.fda_next_action)
+            if be_result.cv_flag == "Acceptable":
+                st.success("Time-point variability is within the screening threshold.")
+            else:
+                st.warning(f"Variability review: {be_result.cv_flag}")
+            backend = "R backend" if be_result.r_backend_used else "Python fallback"
+            st.caption(f"{backend}: {be_result.method_note}")
+            with st.expander("Bootstrap distribution detail"):
+                st.write(f"**Iterations**: {be_result.bootstrap_runs}")
+                st.write(f"**Median f2**: {be_result.bootstrap_median}")
+                st.write(f"**5th-95th percentile**: {be_result.bootstrap_p05} - {be_result.bootstrap_p95}")
+                st.write(f"**2.5th-97.5th percentile**: {be_result.ci_low} - {be_result.ci_high}")
+                st.info("Bootstrap은 각 time point의 평균, 표준편차, n수를 이용해 reference/test 용출률을 반복 재표본화하고, 반복마다 f2를 다시 계산하는 방식입니다.")
+        else:
+            st.info("표를 입력한 뒤 f2 계산을 실행하세요.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown("#### FDA Bioequivalence Guidance Basis")
+    st.dataframe(pd.DataFrame(FDA_BE_GUIDANCE_SOURCES), use_container_width=True, hide_index=True)
+    st.caption("Primary basis: FDA/ICH M13A for immediate-release oral solid dosage forms, FDA IR dissolution testing guidance, and FDA Dissolution Methods Database for product-specific dissolution methods.")
+
+    summary_df = dissolution_profile_summary(st.session_state.be_profile)
+    if not summary_df.empty:
+        with st.expander("Detailed dissolution statistics"):
+            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+            st.markdown(
+                """
+                **FDA-oriented regulatory interpretation**
+                - f2 >= 50: FDA dissolution profile comparison에서 reference와 test의 유사성 근거로 사용할 수 있습니다.
+                - f2 < 50: 비교용출만으로 동등성 주장을 하기 어렵고, 제품별 FDA 권장 용출법/USP 방법과 in vivo BE 필요성을 재검토해야 합니다.
+                - 초기 time point 변동성은 20%, 이후 time point 변동성은 10%를 넘으면 편차 근거를 별도로 설명하는 것이 좋습니다.
+                - 최종 제출 판단은 제품별 FDA guidance, product-specific guidance, USP method, RLD 특성, dosage form, BCS, formulation proportionality와 함께 검토해야 합니다.
+                """
+            )
+
+st.markdown("<div class='accent-text'>Regulatory Development Strategy Platform</div>", unsafe_allow_html=True)
+st.markdown("<h1 class='hero-title'>ToxiGuard-Platform</h1>", unsafe_allow_html=True)
+st.caption("Ontology + ToxiGuard-AI + ToxiScope + Bioequivalence strategy are connected through one project-level decision workflow.")
+
+render_strategy_dashboard()
 
 col1, col2 = st.columns([1.5, 1])
 
@@ -456,6 +634,8 @@ with col2:
             <p style='margin-top: 1.5rem; color: #94a3b8;'>Validated through Harness R01-R13 gates</p>
         </div>
         """, unsafe_allow_html=True)
+
+render_bioequivalence_module()
 
 if st.session_state.results:
     st.markdown("---")
