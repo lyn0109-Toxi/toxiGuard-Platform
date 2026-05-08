@@ -105,59 +105,60 @@ st.markdown("""
 .brand-lockup {
     display: flex;
     align-items: center;
-    gap: 1.05rem;
+    gap: 1.25rem;
     margin: 0.08rem 0 0.75rem;
 }
 
 .brand-mark {
-    width: 4.55rem;
-    height: 4.55rem;
+    width: 5.2rem;
+    height: 5.2rem;
     position: relative;
-    flex: 0 0 4.55rem;
-    border: 1.5px solid rgba(94, 234, 212, 0.82);
-    border-radius: 18px;
+    flex: 0 0 5.2rem;
+    overflow: hidden;
+    border: 1.5px solid rgba(94, 234, 212, 0.86);
+    border-radius: 16px;
     background:
-        linear-gradient(135deg, rgba(20, 184, 166, 0.32), rgba(14, 165, 233, 0.18)),
+        linear-gradient(135deg, rgba(20, 184, 166, 0.24), rgba(14, 165, 233, 0.12)),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
         rgba(2, 6, 23, 0.72);
+    background-size: auto, 1.35rem 1.35rem, 1.35rem 1.35rem, auto;
     box-shadow:
-        0 0 0 1px rgba(251, 191, 36, 0.18) inset,
+        0 0 0 1px rgba(251, 191, 36, 0.16) inset,
         0 18px 38px rgba(14, 165, 233, 0.26),
         0 0 34px rgba(94, 234, 212, 0.22);
-    transform: rotate(45deg);
 }
 
 .brand-mark::before {
-    content: "TG";
+    content: "";
     position: absolute;
-    inset: 0;
-    display: grid;
-    place-items: center;
-    color: #ffffff;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 1.12rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    text-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
-    transform: rotate(-45deg);
+    width: 0.72rem;
+    height: 0.72rem;
+    left: 0.78rem;
+    top: 0.82rem;
+    border-radius: 999px;
+    background: #fbbf24;
+    box-shadow: 0 0 22px rgba(251, 191, 36, 0.66);
+    animation: orbitDotA 3.8s ease-in-out infinite alternate;
 }
 
 .brand-mark::after {
     content: "";
     position: absolute;
-    width: 0.82rem;
-    height: 0.82rem;
-    right: 0.34rem;
-    top: 0.34rem;
+    width: 0.62rem;
+    height: 0.62rem;
+    right: 0.74rem;
+    bottom: 0.8rem;
     border-radius: 999px;
-    background: #fbbf24;
+    background: #5eead4;
     box-shadow:
-        -2.45rem 0.32rem 0 #38bdf8,
-        -1.05rem 2.55rem 0 #5eead4,
-        0 0 20px rgba(251, 191, 36, 0.55);
+        -2.6rem -1.15rem 0 #38bdf8,
+        0 0 24px rgba(94, 234, 212, 0.58);
+    animation: orbitDotB 4.6s ease-in-out infinite alternate;
 }
 
 .hero-title {
-    font-size: 5.15rem;
+    font-size: clamp(4.5rem, 7.4vw, 6.35rem);
     font-weight: 900;
     background: linear-gradient(135deg, #ffffff 0%, #dbeafe 42%, #5eead4 100%);
     -webkit-background-clip: text;
@@ -166,6 +167,18 @@ st.markdown("""
     margin: 0;
     letter-spacing: 0;
     filter: drop-shadow(0 16px 34px rgba(14, 165, 233, 0.34));
+}
+
+@keyframes orbitDotA {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    42% { transform: translate3d(2.75rem, 0.8rem, 0) scale(0.82); }
+    100% { transform: translate3d(1.25rem, 3.05rem, 0) scale(1.15); }
+}
+
+@keyframes orbitDotB {
+    0% { transform: translate3d(0, 0, 0) scale(1); }
+    48% { transform: translate3d(-2.55rem, -0.9rem, 0) scale(1.14); }
+    100% { transform: translate3d(-0.95rem, -3.05rem, 0) scale(0.86); }
 }
 
 .brand-rule {
