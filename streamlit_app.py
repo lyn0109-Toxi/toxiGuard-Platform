@@ -176,6 +176,49 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div {
     line-height: 1.25;
 }
 
+.primary-start {
+    border: 1px solid rgba(56, 189, 248, 0.55);
+    border-left: 6px solid #38bdf8;
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.24), rgba(15, 23, 42, 0.82));
+    box-shadow: 0 20px 50px rgba(14, 165, 233, 0.14);
+    border-radius: 14px;
+    padding: 1.2rem 1.35rem 1.05rem;
+    margin: 0.7rem 0 1.1rem;
+}
+
+.primary-start-kicker {
+    color: #7dd3fc;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.primary-start-title {
+    color: #ffffff;
+    font-size: 1.65rem;
+    font-weight: 900;
+    line-height: 1.1;
+    margin-bottom: 0.3rem;
+}
+
+.primary-start-caption {
+    color: #cbd5e1;
+    font-size: 0.94rem;
+    line-height: 1.35;
+}
+
+div[data-testid="stTextInput"] input[aria-label="Chemical / API name"] {
+    border: 2px solid rgba(56, 189, 248, 0.9) !important;
+    background: rgba(2, 6, 23, 0.88) !important;
+    color: #ffffff !important;
+    font-size: 1.08rem !important;
+    font-weight: 800 !important;
+    min-height: 3.1rem;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -692,20 +735,25 @@ def render_platform_quick_start():
     q4.info("**4. Complete BE profile**\n\nFDA sampling times are prepared; enter observed dissolution values for f2 bootstrap.")
 
 def render_primary_chemical_start():
-    st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
-    st.markdown("### Start Here: Chemical / API Name")
-    st.caption("This is the primary input for the whole platform. One chemical name connects identity, QSAR, impurity/degradation, FDA reference product lookup, dissolution method search, and BE strategy.")
-    start_col1, start_col2 = st.columns([1.35, 0.65])
+    st.markdown(
+        """
+        <div class='primary-start'>
+            <div class='primary-start-kicker'>Primary Platform Input</div>
+            <div class='primary-start-title'>Start with Chemical / API Name</div>
+            <div class='primary-start-caption'>Enter one API, impurity, or degradant name. This single input connects identity, QSAR, impurity/degradation, FDA reference product lookup, dissolution method search, and BE strategy.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    start_col1, start_col2 = st.columns([1.55, 0.45], vertical_alignment="bottom")
     with start_col1:
         st.text_input(
             "Chemical / API name",
             key="primary_chemical_name",
-            placeholder="e.g. amlodipine, telmisartan, aniline, brivaracetam",
+            placeholder="Type a drug or impurity name: amlodipine, telmisartan, acetaminophen...",
             help="Use the active ingredient name for product-level strategy, or an impurity/degradant name for targeted ICH M7 assessment.",
         )
     with start_col2:
-        st.write("")
-        st.write("")
         if st.button("Build Integrated Assessment", use_container_width=True):
             if st.session_state.primary_chemical_name.strip():
                 with st.spinner("Resolving identity, running QSAR, and searching FDA reference sources..."):
@@ -717,7 +765,6 @@ def render_primary_chemical_start():
         st.markdown("#### Integrated run status")
         for item in st.session_state.integrated_run_log:
             st.write(f"- {item}")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 def render_module_navigation():
     screens = ["Strategy Dashboard", "Genotoxicity QSAR", "Bioequivalence", "Integrated Evidence"]
@@ -750,7 +797,7 @@ def render_bioequivalence_module():
         st.warning(dosage_strategy["Risk note"])
 
     st.markdown("#### FDA Reference Product and Method Lookup")
-    lookup_col1, lookup_col2 = st.columns([1.2, 0.8])
+    lookup_col1, lookup_col2 = st.columns([1.2, 0.8], vertical_alignment="bottom")
     with lookup_col1:
         reference_lookup_query = st.text_input(
             "Reference product, RLD, or active ingredient",
@@ -759,8 +806,6 @@ def render_bioequivalence_module():
             help="The lookup searches FDA Orange Book and FDA Dissolution Methods Database. Generic active ingredient names usually work best for dissolution methods.",
         )
     with lookup_col2:
-        st.write("")
-        st.write("")
         if st.button("Search FDA reference and dissolution method", use_container_width=True):
             if reference_lookup_query and len(reference_lookup_query.strip()) >= 3:
                 with st.spinner("Searching FDA Orange Book and Dissolution Methods Database..."):
