@@ -92,7 +92,12 @@ st.set_page_config(
 hero_path = Path(__file__).parent / "hero.png"
 hero_bg_uri = ""
 if hero_path.exists():
-    hero_bg_uri = "data:image/jpeg;base64," + base64.b64encode(hero_path.read_bytes()).decode("ascii")
+    hero_bg_uri = "data:image/png;base64," + base64.b64encode(hero_path.read_bytes()).decode("ascii")
+
+ontology_map_path = Path(__file__).parent / "ontology_map.png"
+ontology_map_uri = ""
+if ontology_map_path.exists():
+    ontology_map_uri = "data:image/png;base64," + base64.b64encode(ontology_map_path.read_bytes()).decode("ascii")
 
 # --- CSS: Premium Design System ---
 st.markdown("""
@@ -551,6 +556,8 @@ a:hover {
 }
 
 .ontology-stage {
+    position: relative;
+    overflow: hidden;
     border: 1px solid rgba(94, 234, 212, 0.42);
     border-radius: 18px;
     background:
@@ -565,6 +572,103 @@ a:hover {
     height: auto;
     display: block;
     border-radius: 12px;
+}
+
+.ontology-animated-map {
+    position: relative;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #f8fbfe;
+}
+
+.ontology-animated-map img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.electron {
+    position: absolute;
+    width: 0.82rem;
+    height: 0.82rem;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    background: #5eead4;
+    box-shadow:
+        0 0 0 3px rgba(94, 234, 212, 0.18),
+        0 0 18px rgba(94, 234, 212, 0.9),
+        0 0 34px rgba(14, 165, 233, 0.55);
+    animation-duration: 5.8s;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+}
+
+.electron.gold {
+    background: #fbbf24;
+    box-shadow:
+        0 0 0 3px rgba(251, 191, 36, 0.18),
+        0 0 18px rgba(251, 191, 36, 0.85),
+        0 0 34px rgba(245, 158, 11, 0.52);
+}
+
+.electron.red {
+    background: #fb7185;
+    box-shadow:
+        0 0 0 3px rgba(251, 113, 133, 0.18),
+        0 0 18px rgba(251, 113, 133, 0.85),
+        0 0 34px rgba(244, 63, 94, 0.48);
+}
+
+.electron.e1 { animation-name: electronWhy; animation-delay: 0s; }
+.electron.e2 { animation-name: electronProduct; animation-delay: 0.7s; }
+.electron.e3 { animation-name: electronSafety; animation-delay: 1.2s; }
+.electron.e4 { animation-name: electronRegulatory; animation-delay: 1.8s; }
+.electron.e5 { animation-name: electronCmc; animation-delay: 2.4s; }
+.electron.e6 { animation-name: electronBe; animation-delay: 3s; }
+
+@keyframes electronWhy {
+    0% { left: 16%; top: 20%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    12% { opacity: 1; }
+    50% { left: 51%; top: 20%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    88% { opacity: 1; }
+    100% { left: 84%; top: 20%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+}
+
+@keyframes electronProduct {
+    0% { left: 15%; top: 49%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    16% { opacity: 1; }
+    58% { left: 33%; top: 53%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { left: 50%; top: 55%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+}
+
+@keyframes electronSafety {
+    0% { left: 37%; top: 43%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    18% { opacity: 1; }
+    62% { left: 51%; top: 55%; opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+    100% { left: 63%; top: 43%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+}
+
+@keyframes electronRegulatory {
+    0% { left: 51%; top: 55%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    15% { opacity: 1; }
+    70% { left: 77%; top: 55%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { left: 88%; top: 48%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+}
+
+@keyframes electronCmc {
+    0% { left: 27%; top: 72%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    18% { opacity: 1; }
+    60% { left: 45%; top: 81%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { left: 52%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+}
+
+@keyframes electronBe {
+    0% { left: 74%; top: 72%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
+    18% { opacity: 1; }
+    60% { left: 61%; top: 81%; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { left: 52%; top: 82%; opacity: 0; transform: translate(-50%, -50%) scale(0.75); }
 }
 
 .landing-note {
@@ -1486,7 +1590,23 @@ def render_landing_page():
         """,
         unsafe_allow_html=True,
     )
-    st.image("ontology_map.png", use_container_width=True)
+    if ontology_map_uri:
+        st.markdown(
+            f"""
+            <div class='ontology-animated-map'>
+                <img src='{ontology_map_uri}' alt='ToxiGuard-Platform ontology map' />
+                <span class='electron gold e1'></span>
+                <span class='electron e2'></span>
+                <span class='electron red e3'></span>
+                <span class='electron gold e4'></span>
+                <span class='electron e5'></span>
+                <span class='electron e6'></span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.image("ontology_map.png", use_container_width=True)
     st.markdown(
         """
             </div>
