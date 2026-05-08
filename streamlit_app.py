@@ -521,7 +521,7 @@ a:hover {
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    gap: 0.42rem;
+    gap: 0.28rem;
     padding: 0 0 0.35rem;
 }
 
@@ -559,6 +559,7 @@ a:hover {
 .ontology-stage {
     position: relative;
     overflow: hidden;
+    margin-top: -0.18rem;
     border: 1px solid rgba(94, 234, 212, 0.42);
     border-radius: 18px;
     background:
@@ -566,7 +567,7 @@ a:hover {
         rgba(15, 23, 42, 0.62);
     box-shadow: 0 24px 70px rgba(2, 6, 23, 0.36), 0 0 0 1px rgba(251, 191, 36, 0.08) inset;
     padding: 0.34rem;
-    max-height: 68vh;
+    max-height: 70vh;
 }
 
 .ontology-stage img {
@@ -582,8 +583,8 @@ a:hover {
     overflow: hidden;
     border-radius: 12px;
     background: #f8fbfe;
-    height: min(67vh, 52vw);
-    max-height: 67vh;
+    height: min(69vh, 52vw);
+    max-height: 69vh;
 }
 
 .ontology-animated-map img {
@@ -729,13 +730,13 @@ if hero_bg_uri:
             z-index: 0;
             pointer-events: none;
             background-image:
-                linear-gradient(90deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 38%, rgba(15, 23, 42, 0.72) 100%),
+                linear-gradient(90deg, rgba(2, 6, 23, 0.98) 0%, rgba(15, 23, 42, 0.94) 42%, rgba(15, 23, 42, 0.86) 100%),
                 url("{hero_bg_uri}");
             background-size: 100% auto;
             background-repeat: no-repeat;
             background-position: center top;
             background-color: #0f172a;
-            opacity: 0.58;
+            opacity: 0.5;
             transform: scale(1.01);
             animation: genotoxDrift 34s ease-in-out infinite alternate;
         }}
@@ -819,7 +820,7 @@ if not st.session_state.entered_platform:
         }
         .block-container {
             max-width: 1480px !important;
-            padding-top: 1.1rem !important;
+            padding-top: 0.55rem !important;
             padding-left: 2rem !important;
             padding-right: 2rem !important;
         }
