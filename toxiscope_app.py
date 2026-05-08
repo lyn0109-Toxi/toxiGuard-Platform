@@ -103,7 +103,7 @@ st.markdown("""
 }
 
 .hero-title {
-    font-size: 4.5rem;
+    font-size: 3.9rem;
     font-weight: 900;
     background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
     -webkit-background-clip: text;
@@ -182,8 +182,8 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div {
     background: linear-gradient(135deg, rgba(14, 165, 233, 0.24), rgba(15, 23, 42, 0.82));
     box-shadow: 0 20px 50px rgba(14, 165, 233, 0.14);
     border-radius: 14px;
-    padding: 1.2rem 1.35rem 1.05rem;
-    margin: 0.7rem 0 1.1rem;
+    padding: 1rem 1.15rem 0.95rem;
+    margin: 0.45rem 0 0.8rem;
 }
 
 .primary-start-kicker {
@@ -198,7 +198,7 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div {
 
 .primary-start-title {
     color: #ffffff;
-    font-size: 1.65rem;
+    font-size: 1.5rem;
     font-weight: 900;
     line-height: 1.1;
     margin-bottom: 0.3rem;
@@ -206,7 +206,7 @@ section[data-testid="stSidebar"] [data-baseweb="select"] > div {
 
 .primary-start-caption {
     color: #cbd5e1;
-    font-size: 0.94rem;
+    font-size: 0.88rem;
     line-height: 1.35;
 }
 
@@ -275,6 +275,10 @@ div[data-testid="stTextInput"] input[aria-label="Chemical / API name"] {
     font-size: 1.08rem !important;
     font-weight: 800 !important;
     min-height: 3.1rem;
+}
+
+.block-container {
+    padding-top: 2.6rem !important;
 }
 
 </style>
@@ -801,12 +805,12 @@ def render_strategy_dashboard():
         st.dataframe(pd.DataFrame(FDA_GUIDANCE_MAP), use_container_width=True, hide_index=True)
 
 def render_platform_quick_start():
-    st.markdown("### How to use this platform")
-    q1, q2, q3, q4 = st.columns(4)
-    q1.info("**1. Start with chemical name**\n\nEnter the API, impurity, or degradant name once.")
-    q2.info("**2. Auto-build identity**\n\nThe platform resolves SMILES and runs QSAR / ICH M7 assessment.")
-    q3.info("**3. Connect evidence**\n\nImpurity, degradation, Orange Book, and FDA dissolution sources are searched.")
-    q4.info("**4. Complete BE profile**\n\nFDA sampling times are prepared; enter observed dissolution values for f2 bootstrap.")
+    with st.expander("How this platform works", expanded=False):
+        q1, q2, q3, q4 = st.columns(4)
+        q1.info("**1. Chemical name**\n\nEnter the API, impurity, or degradant once.")
+        q2.info("**2. Identity + QSAR**\n\nResolve SMILES and run ICH M7 assessment.")
+        q3.info("**3. Evidence**\n\nSearch impurity, degradation, FDA product, and dissolution sources.")
+        q4.info("**4. BE profile**\n\nEnter dissolution values for f2 bootstrap.")
 
 def render_primary_chemical_start():
     st.markdown(
@@ -1130,8 +1134,8 @@ st.markdown("<div class='accent-text'>Regulatory Development Strategy Platform</
 st.markdown("<h1 class='hero-title'>ToxiGuard-Platform</h1>", unsafe_allow_html=True)
 st.caption("Ontology + ToxiGuard-AI + ToxiScope + Bioequivalence strategy are connected through one project-level decision workflow.")
 
-render_platform_quick_start()
 render_primary_chemical_start()
+render_platform_quick_start()
 input_name = (st.session_state.active_chemical_name or st.session_state.primary_chemical_name).strip()
 render_module_navigation()
 render_strategy_dashboard()
