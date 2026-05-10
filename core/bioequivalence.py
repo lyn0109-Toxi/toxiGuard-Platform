@@ -63,6 +63,29 @@ FDA_DISSOLUTION_SEARCH_URL = "https://www.accessdata.fda.gov/scripts/cder/dissol
 OPENFDA_DRUGSFDA_URL = "https://api.fda.gov/drug/drugsfda.json"
 OPENFDA_LABEL_URL = "https://api.fda.gov/drug/label.json"
 
+CURATED_REFERENCE_PRODUCTS = {
+    "vivitrol": {
+        "Ingredient": "NALTREXONE",
+        "Trade name": "VIVITROL",
+        "Applicant": "ALKERMES",
+        "Strength": "380 mg/vial",
+        "Dosage form / route": "EXTENDED-RELEASE INJECTABLE SUSPENSION; INTRAMUSCULAR",
+        "Application": "NDA021897",
+        "Product no.": "",
+        "TE code": "",
+        "RLD": "Yes",
+        "RS": "Yes",
+        "Approval date": "",
+        "Marketing status": "Prescription",
+        "Source": "Curated FDA label / Orange Book context",
+        "Dose regimen": "380 mg by deep intramuscular gluteal injection every 4 weeks or once monthly",
+        "BE strategy override": "Long-acting injectable / product-specific review",
+        "Dissolution f2 applicable": "No",
+        "Rationale": "Vivitrol is naltrexone for extended-release injectable suspension, not an immediate-release oral solid dosage form.",
+        "Source URL": "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/021897s057lbl.pdf",
+    }
+}
+
 
 class _TableParser(HTMLParser):
     def __init__(self):
@@ -94,6 +117,21 @@ class _TableParser(HTMLParser):
 
 def _contains_query(value, query):
     return query.lower() in str(value or "").lower()
+
+
+def _curated_reference_rows(query):
+    query_norm = str(query or "").strip().lower()
+    if not query_norm:
+        return []
+    rows = []
+    for key, row in CURATED_REFERENCE_PRODUCTS.items():
+        if (
+            query_norm in key
+            or query_norm in row.get("Trade name", "").lower()
+            or query_norm in row.get("Ingredient", "").lower()
+        ):
+            rows.append(dict(row))
+    return rows
 
 
 def _read_orange_book_products(timeout=20):
@@ -346,6 +384,7 @@ def sampling_times_to_profile(method_row, default_n=12):
 
 
 def lookup_reference_product_package(query):
+    curated_rows = _curated_reference_rows(query)
     orange_book = search_orange_book_reference(query)
     drug_products = search_openfda_drug_products(query)
     label_products = search_openfda_label_products(query) if not drug_products.get("rows") else {"rows": [], "error": "", "source_url": "https://open.fda.gov/apis/drug/label/"}
@@ -353,6 +392,15 @@ def lookup_reference_product_package(query):
         orange_book = {**orange_book, "rows": drug_products["rows"], "error": ""}
     if not orange_book.get("rows") and label_products.get("rows"):
         orange_book = {**orange_book, "rows": label_products["rows"], "error": ""}
+    if curated_rows:
+        existing = orange_book.get("rows") or []
+        seen = {str(row.get("Trade name", "")).lower() + "|" + str(row.get("Application", "")).lower() for row in existing}
+        merged = []
+        for row in curated_rows:
+            key = str(row.get("Trade name", "")).lower() + "|" + str(row.get("Application", "")).lower()
+            if key not in seen:
+                merged.append(row)
+        orange_book = {**orange_book, "rows": merged + existing, "error": ""}
     dissolution = search_fda_dissolution_methods(query)
     return {
         "query": query,
@@ -372,7 +420,9 @@ def lookup_reference_product_package(query):
 
 def classify_be_dosage_form(dosage_form):
     label = (dosage_form or "").lower()
-    if any(term in label for term in ["modified", "sustained", "extended", "controlled", "delayed"]):
+    if "injectable" in label and any(term in label for term in ["extended", "long-acting", "depot", "suspension"]):
+        return "Long-acting injectable / extended release"
+    if any(term in label for term in ["modified", "sustained", "extended", "controlled", "delayed", "depot"]):
         return "Modified / sustained / extended release"
     if "immediate" in label or "tablet" in label or "capsule" in label:
         return "Immediate release"
@@ -383,6 +433,15 @@ def classify_be_dosage_form(dosage_form):
 
 def be_strategy_by_dosage_form(dosage_form):
     release_type = classify_be_dosage_form(dosage_form)
+    if release_type == "Long-acting injectable / extended release":
+        return {
+            "Release type": release_type,
+            "Primary BE focus": "Product-specific long-acting injectable strategy; release kinetics, formulation sameness, PK exposure, injection-site tolerability, and device/administration factors require explicit review.",
+            "Dissolution role": "Oral IR f2 dissolution logic is not the primary BE basis. Use in vitro release or product-specific methods only when justified for the dosage form.",
+            "Recommended study design": "Confirm FDA product-specific guidance. Strategy may require comparative PK with extended sampling, formulation/device comparability, in vitro release, residual solvent/polymer controls, and injection-site safety review.",
+            "Key data needs": "RLD/RS, strength per vial, release-controlling excipients or microsphere/polymer attributes, route/site of administration, PK sampling duration, in vitro release method, CMC sameness, device/kit components.",
+            "Risk note": "Do not apply immediate-release oral f2 criteria to long-acting injectable products. Treat as product-specific BE and CMC strategy review.",
+        }
     if release_type == "Immediate release":
         return {
             "Release type": release_type,
@@ -417,6 +476,56 @@ def be_strategy_by_dosage_form(dosage_form):
         "Recommended study design": "Check FDA product-specific guidance and dosage-form-specific BE recommendations.",
         "Key data needs": "RLD/RS, dosage form, route, strength, formulation design, product-specific guidance.",
         "Risk note": "Insufficient dosage-form information for default BE strategy.",
+    }
+
+
+def infer_reference_product_context(reference_row=None, selected_dosage_form="", reference_query=""):
+    row = reference_row or {}
+    dosage_route = row.get("Dosage form / route", "")
+    product_name = row.get("Trade name", "") or reference_query or ""
+    combined = " ".join(
+        [
+            product_name,
+            row.get("Ingredient", ""),
+            row.get("Strength", ""),
+            dosage_route,
+            row.get("BE strategy override", ""),
+            row.get("Rationale", ""),
+        ]
+    ).lower()
+    effective_dosage_form = dosage_route or selected_dosage_form or "Not specified"
+    effective_release_type = classify_be_dosage_form(effective_dosage_form)
+    is_vivitrol_like = "vivitrol" in combined or ("naltrexone" in combined and "inject" in combined and "extended" in combined)
+    is_long_acting_injectable = is_vivitrol_like or (
+        "inject" in combined and any(term in combined for term in ["extended", "long-acting", "depot", "microsphere", "suspension"])
+    )
+    if is_long_acting_injectable:
+        effective_release_type = "Long-acting injectable / extended release"
+    selected_release_type = classify_be_dosage_form(selected_dosage_form)
+    mismatch = (
+        selected_dosage_form
+        and effective_release_type != selected_release_type
+        and selected_release_type == "Immediate release"
+        and effective_release_type != "Immediate release"
+    )
+    f2_applicable = effective_release_type == "Immediate release"
+    if str(row.get("Dissolution f2 applicable", "")).lower() == "no":
+        f2_applicable = False
+    return {
+        "product_name": product_name or "Reference product",
+        "ingredient": row.get("Ingredient", ""),
+        "strength": row.get("Strength", ""),
+        "dose_regimen": row.get("Dose regimen", ""),
+        "dosage_form_route": effective_dosage_form,
+        "selected_dosage_form": selected_dosage_form,
+        "effective_release_type": effective_release_type,
+        "selected_release_type": selected_release_type,
+        "dosage_form_mismatch": bool(mismatch),
+        "f2_applicable": bool(f2_applicable),
+        "strategy": be_strategy_by_dosage_form(effective_release_type),
+        "rationale": row.get("Rationale", ""),
+        "source": row.get("Source", ""),
+        "source_url": row.get("Source URL", ""),
     }
 
 

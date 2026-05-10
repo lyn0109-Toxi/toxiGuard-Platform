@@ -8,7 +8,14 @@ from core.regulatory import (
     assess_genotoxicity,
     predict_degradation_products,
 )
-from core.bioequivalence import DEFAULT_DISSOLUTION_PROFILE, calculate_f2, sampling_times_to_profile, be_strategy_by_dosage_form
+from core.bioequivalence import (
+    DEFAULT_DISSOLUTION_PROFILE,
+    calculate_f2,
+    sampling_times_to_profile,
+    be_strategy_by_dosage_form,
+    infer_reference_product_context,
+    lookup_reference_product_package,
+)
 from core.ontology import build_strategy_snapshot, build_submission_workflow
 
 def test_sync():
@@ -118,6 +125,25 @@ def test_sync():
         print("✅ IR and MR/ER BE strategy branches resolved.")
     else:
         print("❌ Dosage-form strategy branch failed.")
+
+    # 11. Test Vivitrol long-acting injectable strategy guardrail
+    print("--- Resolving Vivitrol reference-product BE guardrail ---")
+    vivitrol_package = lookup_reference_product_package("vivitrol")
+    vivitrol_rows = (vivitrol_package.get("orange_book") or {}).get("rows") or []
+    vivitrol_context = infer_reference_product_context(
+        vivitrol_rows[0] if vivitrol_rows else {},
+        selected_dosage_form="Immediate-release tablet/capsule",
+        reference_query="vivitrol",
+    )
+    if (
+        vivitrol_rows
+        and vivitrol_context["effective_release_type"] == "Long-acting injectable / extended release"
+        and vivitrol_context["dosage_form_mismatch"]
+        and not vivitrol_context["f2_applicable"]
+    ):
+        print("✅ Vivitrol guardrail detected injectable ER mismatch and blocked primary oral IR f2 logic.")
+    else:
+        print(f"❌ Vivitrol guardrail failed: {vivitrol_context}")
 
 if __name__ == "__main__":
     test_sync()

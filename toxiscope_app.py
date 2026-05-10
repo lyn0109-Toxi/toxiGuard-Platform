@@ -52,6 +52,7 @@ try:
         lookup_reference_product_package,
         sampling_times_to_profile,
         be_strategy_by_dosage_form,
+        infer_reference_product_context,
     )
     from core.ontology import (
         FDA_GUIDANCE_MAP,
@@ -1040,6 +1041,7 @@ def build_integrated_assessment(chemical_name):
 
     log = []
     st.session_state.active_chemical_name = name
+    st.session_state.be_product_context = {}
 
     res = get_smiles_from_name(name)
     if res:
@@ -1051,7 +1053,8 @@ def build_integrated_assessment(chemical_name):
     else:
         log.append("SMILES resolution failed. Enter SMILES manually in the manual override panel.")
 
-    fda_package = lookup_reference_product_package(name)
+    reference_query = (reference_product or name).strip()
+    fda_package = lookup_reference_product_package(reference_query)
     st.session_state.fda_reference_package = fda_package
     dissolution_rows = (fda_package.get("dissolution") or {}).get("rows") or []
     if dissolution_rows:
@@ -1063,8 +1066,17 @@ def build_integrated_assessment(chemical_name):
     orange_book_rows = (fda_package.get("orange_book") or {}).get("rows") or []
     if orange_book_rows:
         log.append("Found Orange Book RLD/RS candidates.")
+        context = infer_reference_product_context(orange_book_rows[0], dosage_form, reference_query)
+        st.session_state.be_product_context = context
+        if context.get("dosage_form_mismatch"):
+            log.append(
+                f"Reference product dosage form appears to be {context['effective_release_type']}; selected dosage form should be reviewed."
+            )
+        if not context.get("f2_applicable"):
+            log.append("Oral immediate-release f2 logic is not the primary BE basis for this reference product.")
     else:
         log.append("No Orange Book RLD/RS candidate was automatically matched.")
+        st.session_state.be_product_context = {}
 
     st.session_state.integrated_run_log = log
     return log
@@ -1330,6 +1342,7 @@ def risk_badge_html(label, value):
         "Low": "#10b981",
         "Not started": "#64748b",
         "Review needed": "#f59e0b",
+        "Product-specific": "#f59e0b",
     }.get(value, "#64748b")
     return f"""
     <div class='glass-card' style='padding:1.2rem; min-height:142px;'>
@@ -1345,6 +1358,14 @@ def render_strategy_dashboard():
         be_result=st.session_state.get("be_result"),
         role=user_role,
     )
+    be_context = st.session_state.get("be_product_context") or {}
+    if be_context and not be_context.get("f2_applicable", True):
+        snapshot["bioequivalence_risk"] = "Product-specific"
+        snapshot["overall_risk"] = "Review needed" if snapshot["overall_risk"] == "Low" else snapshot["overall_risk"]
+        for item in snapshot["module_actions"]:
+            if item.get("Module") == "Bioequivalence":
+                item["Risk"] = "Product-specific"
+                item["Next action"] = "Use reference-product-specific injectable/long-acting BE strategy; do not apply oral IR f2 as the primary basis."
     workflow = build_submission_workflow(
         results=st.session_state.results,
         degradants=st.session_state.degradants,
@@ -1366,6 +1387,21 @@ def render_strategy_dashboard():
     r2.markdown(risk_badge_html("QSAR / Genotoxicity", snapshot["toxicology_risk"]), unsafe_allow_html=True)
     r3.markdown(risk_badge_html("Impurity / Degradation", snapshot["degradation_risk"]), unsafe_allow_html=True)
     r4.markdown(risk_badge_html("Bioequivalence", snapshot["bioequivalence_risk"]), unsafe_allow_html=True)
+    if be_context and be_context.get("dosage_form_mismatch"):
+        st.warning(
+            f"Reference product check: {be_context.get('product_name')} appears to be "
+            f"{be_context.get('effective_release_type')} ({be_context.get('dosage_form_route')}). "
+            f"The selected dosage form is {be_context.get('selected_dosage_form')}. Review the dosage-form strategy before using BE/f2 outputs."
+        )
+        if be_context.get("dose_regimen"):
+            st.info(f"Reference labeled regimen: {be_context['dose_regimen']}")
+    elif be_context and not be_context.get("f2_applicable", True):
+        st.warning(
+            f"Reference product check: {be_context.get('product_name')} requires product-specific BE review. "
+            "Immediate-release oral f2 should not be used as the primary BE decision basis."
+        )
+        if be_context.get("dose_regimen"):
+            st.info(f"Reference labeled regimen: {be_context['dose_regimen']}")
 
     nav1, nav2, nav3 = st.columns(3)
     if nav1.button("Open Genotoxicity QSAR Detail", use_container_width=True):
@@ -1445,12 +1481,24 @@ def render_bioequivalence_module():
     st.markdown("## Comparative Dissolution and Bioequivalence")
     st.caption("Search the FDA reference product and dissolution method first, then enter laboratory reference/test dissolution values for f2 bootstrap analysis.")
 
-    dosage_strategy = be_strategy_by_dosage_form(dosage_form)
+    be_context = st.session_state.get("be_product_context") or {}
+    dosage_strategy = be_context.get("strategy") or be_strategy_by_dosage_form(dosage_form)
     st.markdown("#### Dosage Form Release-Type Strategy")
     ds1, ds2, ds3 = st.columns(3)
     ds1.metric("Selected dosage form", dosage_form)
     ds2.metric("BE release type", dosage_strategy["Release type"])
     ds3.metric("Submission path", submission_path)
+    if be_context and be_context.get("dosage_form_mismatch"):
+        st.error(
+            f"Reference/dosage-form mismatch detected: {be_context.get('product_name')} is "
+            f"{be_context.get('dosage_form_route')}, but the sidebar dosage form is {dosage_form}. "
+            "For this case, use the reference product dosage form as the BE strategy basis."
+        )
+    elif be_context and not be_context.get("f2_applicable", True):
+        st.warning(
+            f"{be_context.get('product_name')} is treated as {be_context.get('effective_release_type')}. "
+            "The f2 dissolution panel below is exploratory only and should not be used as the primary FDA BE basis."
+        )
     st.info(f"**Primary BE focus**: {dosage_strategy['Primary BE focus']}")
     with st.expander("Dosage-form-specific BE requirements"):
         st.write(f"**Recommended study design**: {dosage_strategy['Recommended study design']}")
@@ -1524,6 +1572,8 @@ def render_bioequivalence_module():
                 ]
                 selected_product = st.selectbox("Reference trade name / dosage strength for BE plan", product_options)
                 selected_product_row = preferred_rows[product_options.index(selected_product)]
+                selected_context = infer_reference_product_context(selected_product_row, dosage_form, reference_lookup_query)
+                st.session_state.be_product_context = selected_context
                 st.markdown(
                     f"""
                     <div class='be-product-card'>
@@ -1538,6 +1588,21 @@ def render_bioequivalence_module():
                     unsafe_allow_html=True,
                 )
                 st.caption(f"Reference detail source: {selected_product_row.get('Source') or 'FDA Orange Book'}")
+                if selected_context.get("dose_regimen"):
+                    st.info(f"**Labeled dose regimen**: {selected_context['dose_regimen']}")
+                if selected_context.get("dosage_form_mismatch"):
+                    st.error(
+                        f"Dosage-form mismatch: selected sidebar dosage form is `{dosage_form}`, "
+                        f"but the reference product is `{selected_context.get('dosage_form_route')}`. "
+                        "Update the dosage-form strategy or treat BE as product-specific review."
+                    )
+                if not selected_context.get("f2_applicable", True):
+                    st.warning(
+                        "Oral immediate-release f2 similarity is not the primary BE basis for this reference product. "
+                        "Use product-specific injectable/long-acting release strategy and confirm FDA product-specific guidance."
+                    )
+                if selected_context.get("source_url"):
+                    st.markdown(f"[Open curated FDA label/source]({selected_context['source_url']})")
                 with st.expander("Dosage strength / dose strategy"):
                     st.caption("Dosage Strength is the amount of active ingredient per dosage unit listed for the reference product. Dose is the administered amount in a BE study. Both matter for BE strategy.")
                     d1, d2 = st.columns(2)
@@ -1585,6 +1650,12 @@ def render_bioequivalence_module():
                 st.write(f"- {note}")
 
     be_col1, be_col2 = st.columns([1.15, 0.85])
+    be_context = st.session_state.get("be_product_context") or {}
+    if be_context and not be_context.get("f2_applicable", True):
+        st.warning(
+            "The dissolution/f2 workspace remains available for exploratory in vitro profile comparison, "
+            "but this selected reference product should be evaluated using product-specific BE and release-method requirements."
+        )
     with be_col1:
         edited_profile = st.data_editor(
             st.session_state.be_profile,
@@ -1613,7 +1684,8 @@ def render_bioequivalence_module():
         st.markdown("<div class='glass-card'>", unsafe_allow_html=True)
         st.markdown("#### Decision Snapshot")
         bootstrap_runs = st.slider("Bootstrap iterations", min_value=500, max_value=10000, value=2000, step=500)
-        if st.button("Calculate f2 with Bootstrap", use_container_width=True):
+        button_label = "Calculate exploratory f2 with Bootstrap" if be_context and not be_context.get("f2_applicable", True) else "Calculate f2 with Bootstrap"
+        if st.button(button_label, use_container_width=True):
             try:
                 be_result = calculate_f2(edited_profile, bootstrap_runs=bootstrap_runs)
                 st.session_state.be_result = be_result
@@ -1627,10 +1699,17 @@ def render_bioequivalence_module():
             st.metric("Bootstrap 95% CI", f"{be_result.ci_low} - {be_result.ci_high}")
             st.metric("Bootstrap P(f2 ≥ 50)", f"{be_result.probability_f2_ge_50}%")
             st.write(f"**FDA strategy decision**: {be_result.fda_decision}")
-            st.write(f"**FDA submission risk**: {be_result.fda_risk}")
-            if be_result.f2 >= 50:
-                st.success("The reference and test dissolution profiles support an FDA-style f2 similarity rationale.")
+            if be_context and not be_context.get("f2_applicable", True):
+                st.write("**FDA submission risk**: Product-specific review required")
+                st.warning(
+                    "Do not interpret this f2 value as an FDA-style BE similarity conclusion for the selected reference product. "
+                    "For long-acting injectable products, prioritize product-specific guidance, release kinetics, PK study design, and CMC/formulation sameness."
+                )
             else:
+                st.write(f"**FDA submission risk**: {be_result.fda_risk}")
+            if be_result.f2 >= 50 and not (be_context and not be_context.get("f2_applicable", True)):
+                st.success("The reference and test dissolution profiles support an FDA-style f2 similarity rationale.")
+            elif not (be_context and not be_context.get("f2_applicable", True)):
                 st.error("f2 is below 50. Comparative dissolution alone is not sufficient for a similarity rationale; review formulation, process, particle size, polymorph, dissolution method, or in vivo BE strategy.")
             st.info(be_result.fda_next_action)
             if be_result.cv_flag == "Acceptable":
